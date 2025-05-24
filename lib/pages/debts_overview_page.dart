@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import '../models/debt_record_model.dart';
 
 class DebtsPage extends StatefulWidget {
-  const DebtsPage({super.key});
+  final int initialTabIndex;
+
+  const DebtsPage({super.key, this.initialTabIndex = 0});
 
   @override
   State<DebtsPage> createState() => _DebtsPageState();
@@ -19,7 +21,11 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
     _loadDebts();
   }
 
@@ -247,7 +253,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               subtitle,
               style: TextStyle(

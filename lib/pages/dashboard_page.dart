@@ -4,6 +4,7 @@ import '../models/debt_record_model.dart';
 import 'contacts_page.dart';
 import 'debts_overview_page.dart';
 import 'payment_history_page.dart';
+import 'add_debt_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -44,6 +45,84 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       setState(() => isLoading = false);
     }
+  }
+
+  Future<void> _showContactSelectionDialog(bool isMyDebt) async {
+    final contacts = await ContactModel.getAllContacts();
+
+    if (contacts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No contacts found. Please add a contact first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // Navigate to contacts page to add contact
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ContactsPage()),
+      ).then((_) => _loadDashboardData());
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isMyDebt ? 'I Owe Money To...' : 'Someone Owes Me...'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: ListView.builder(
+            itemCount: contacts.length,
+            itemBuilder: (context, index) {
+              final contact = contacts[index];
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: isMyDebt ? Colors.red[100] : Colors.green[100],
+                  child: Text(
+                    contact.fullName.isNotEmpty ? contact.fullName[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      color: isMyDebt ? Colors.red[700] : Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(contact.fullName),
+                subtitle: Text(contact.phoneNumber),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddDebtPage(
+                        contact: contact,
+                        isMyDebt: isMyDebt,
+                      ),
+                    ),
+                  ).then((_) => _loadDashboardData());
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ContactsPage()),
+              ).then((_) => _loadDashboardData());
+            },
+            child: const Text('Add New Contact'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -112,24 +191,26 @@ class _DashboardPageState extends State<DashboardPage> {
 
               const SizedBox(height: 24),
 
-              // Money Overview Cards
+              // Money Overview Cards with Navigation
               Row(
                 children: [
                   Expanded(
-                    child: _buildMoneyCard(
+                    child: _buildMoneyCardWithAction(
                       'I Owe',
                       totalIOwe,
                       Colors.red[400]!,
                       Icons.arrow_upward,
+                      0, // Tab index for "I Owe" tab
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildMoneyCard(
+                    child: _buildMoneyCardWithAction(
                       'They Owe',
                       totalTheyOwe,
                       Colors.green[400]!,
                       Icons.arrow_downward,
+                      1, // Tab index for "They Owe" tab
                     ),
                   ),
                 ],
@@ -160,11 +241,86 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
 
+              const SizedBox(height: 24),
+
+              // Quick Add Debt Buttons
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Quick Add Debt',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Quickly record a new debt without navigating through contacts',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showContactSelectionDialog(true),
+                            icon: const Icon(Icons.add),
+                            label: const Text('I Owe Money'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[400],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showContactSelectionDialog(false),
+                            icon: const Icon(Icons.add),
+                            label: const Text('They Owe Me'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[400],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 32),
 
-              // Quick Actions
+              // Navigation Actions
               const Text(
-                'Quick Actions',
+                'More Options',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -218,92 +374,153 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildMoneyCard(String title, double amount, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+  Widget _buildMoneyCardWithAction(String title, double amount, Color color, IconData icon, int tabIndex) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DebtsPage(initialTabIndex: tabIndex),
+        ),
+      ).then((_) => _loadDashboardData()),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 1,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Icon(icon, color: color, size: 20),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '\$${amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: color,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Tap to view',
                 style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              Icon(icon, color: color, size: 20),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '\$${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStatusCard(String title, String value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+    // Determine which tab to navigate to based on title
+    int tabIndex = title == 'Overdue' ? 2 : -1; // -1 means no navigation
+
+    return GestureDetector(
+      onTap: tabIndex != -1 ? () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DebtsPage(initialTabIndex: tabIndex),
+        ),
+      ).then((_) => _loadDashboardData()) : null,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: tabIndex != -1 ? Border.all(
+            color: color.withOpacity(0.2),
+            width: 1,
+          ) : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Icon(icon, color: color, size: 20),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (tabIndex != -1) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Tap to view',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              Icon(icon, color: color, size: 20),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
