@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/return_model.dart';
+import '../models/payment_history_model.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -307,7 +307,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${payment.paidAmount.toStringAsFixed(2)}',
+                      '\${payment.paidAmount.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

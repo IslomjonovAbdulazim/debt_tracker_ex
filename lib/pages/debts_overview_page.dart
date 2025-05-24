@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/debt_model.dart';
+import '../models/debt_record_model.dart';
 
 class DebtsPage extends StatefulWidget {
   const DebtsPage({super.key});
@@ -139,44 +139,126 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
 
     return Column(
       children: [
-      // Total Summary Card
-      Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        // Total Summary Card
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Total Amount',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+          child: Column(
+            children: [
+              Text(
+                'Total Amount',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '\$${total.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: isMyDebt == true
+                      ? Colors.red[600]
+                      : isMyDebt == false
+                      ? Colors.green[600]
+                      : Colors.orange[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${debts.length} ${debts.length == 1 ? 'debt' : 'debts'}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Debts List
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadDebts,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: debts.length,
+              itemBuilder: (context, index) {
+                final debt = debts[index];
+                return _buildDebtCard(debt);
+              },
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 16,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(bool? isMyDebt) {
+    String title;
+    String subtitle;
+    IconData icon;
+
+    if (isMyDebt == true) {
+      title = 'No debts you owe';
+      subtitle = 'You don\'t owe anyone money right now';
+      icon = Icons.sentiment_satisfied;
+    } else if (isMyDebt == false) {
+      title = 'No one owes you';
+      subtitle = 'No one owes you money right now';
+      icon = Icons.sentiment_neutral;
+    } else {
+      title = 'No overdue debts';
+      subtitle = 'All debts are on track!';
+      icon = Icons.check_circle_outline;
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 80,
+              color: Colors.grey[400],
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -265,7 +347,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\${debt.debtAmount.toStringAsFixed(2)}',
+                      '\$${debt.debtAmount.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -434,86 +516,4 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
       ),
     );
   }
-}(height: 8),
-Text(
-'\$${total.toStringAsFixed(2)}',
-style: TextStyle(
-fontSize: 28,
-fontWeight: FontWeight.bold,
-color: isMyDebt == true
-? Colors.red[600]
-    : isMyDebt == false
-? Colors.green[600]
-    : Colors.orange[600],
-),
-),
-const SizedBox(height: 4),
-Text(
-'${debts.length} ${debts.length == 1 ? 'debt' : 'debts'}',
-style: TextStyle(
-fontSize: 12,
-color: Colors.grey[500],
-),
-),
-],
-),
-),
-
-// Debts List
-Expanded(
-child: RefreshIndicator(
-onRefresh: _loadDebts,
-child: ListView.builder(
-padding: const EdgeInsets.symmetric(horizontal: 16),
-itemCount: debts.length,
-itemBuilder: (context, index) {
-final debt = debts[index];
-return _buildDebtCard(debt);
-},
-),
-),
-),
-],
-);
 }
-
-Widget _buildEmptyState(bool? isMyDebt) {
-String title;
-String subtitle;
-IconData icon;
-
-if (isMyDebt == true) {
-title = 'No debts you owe';
-subtitle = 'You don\'t owe anyone money right now';
-icon = Icons.sentiment_satisfied;
-} else if (isMyDebt == false) {
-title = 'No one owes you';
-subtitle = 'No one owes you money right now';
-icon = Icons.sentiment_neutral;
-} else {
-title = 'No overdue debts';
-subtitle = 'All debts are on track!';
-icon = Icons.check_circle_outline;
-}
-
-return Center(
-child: Padding(
-padding: const EdgeInsets.all(40),
-child: Column(
-mainAxisAlignment: MainAxisAlignment.center,
-children: [
-Icon(
-icon,
-size: 80,
-color: Colors.grey[400],
-),
-const SizedBox(height: 20),
-Text(
-title,
-style: TextStyle(
-fontSize: 20,
-color: Colors.grey[600],
-fontWeight: FontWeight.w600,
-),
-),
-const SizedBox

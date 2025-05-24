@@ -78,7 +78,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
       final success = await DebtRecordModel.createDebtRecord(newDebt);
 
       if (success) {
-        Navigator.pop(context);
+        Navigator.pop(context, true); // Return true to indicate success
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Debt record added successfully!')),
         );
@@ -393,9 +393,9 @@ class _AddDebtPageState extends State<AddDebtPage> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                      : Text(
+                      : const Text(
                     'Add Debt Record',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
