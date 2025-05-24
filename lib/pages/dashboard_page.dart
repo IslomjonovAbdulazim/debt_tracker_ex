@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/contact_model.dart';
 import '../models/debt_record_model.dart';
+import 'contacts_page.dart';
+import 'debts_overview_page.dart';
+import 'payment_history_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
