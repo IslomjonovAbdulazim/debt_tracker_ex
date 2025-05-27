@@ -5,10 +5,7 @@ import 'pages/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize demo data
-  await AuthModel.initializeDemoData();
-
+  // await AuthModel.logout();
   runApp(const DebtTrackerApp());
 }
 

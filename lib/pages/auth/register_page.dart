@@ -59,7 +59,7 @@ class _RegisterPageState extends State<RegisterPage> {
             builder: (context) => VerifyEmailPage(
               email: _emailController.text.trim(),
               isFromRegistration: true,
-              verificationCode: result['verificationCode'], // For demo purposes
+              verificationCode: result['verificationCode'], // For testing
             ),
           ),
         );
@@ -134,6 +134,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _fullNameController,
                     textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       hintText: 'Enter your full name',
@@ -160,6 +164,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter your email',
@@ -186,6 +194,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                     decoration: InputDecoration(
                       labelText: 'Password',
                       hintText: 'Create a password',
@@ -224,6 +236,11 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
+                    onFieldSubmitted: (_) => _handleRegister(),
                     decoration: InputDecoration(
                       labelText: 'Confirm Password',
                       hintText: 'Re-enter your password',

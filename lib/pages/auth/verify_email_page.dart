@@ -27,23 +27,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Show demo code if provided
-    if (widget.verificationCode != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demo Code: ${widget.verificationCode}'),
-            duration: const Duration(seconds: 10),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      });
-    }
-  }
-
-  @override
   void dispose() {
     for (var controller in _codeControllers) {
       controller.dispose();

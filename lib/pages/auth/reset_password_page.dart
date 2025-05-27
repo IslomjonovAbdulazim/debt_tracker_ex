@@ -30,6 +30,35 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool _codeVerified = false;
 
   @override
+  void dispose() {
+    for (var controller in _codeControllers) {
+      controller.dispose();
+    }
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }.email,
+  this.resetCode,
+});
+
+@override
+State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+}
+
+class _ResetPasswordPageState extends State<ResetPasswordPage> {
+  final _formKey = GlobalKey<FormState>();
+  final List<TextEditingController> _codeControllers = List.generate(
+    6,
+        (_) => TextEditingController(),
+  );
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _codeVerified = false;
+
+  @override
   void initState() {
     super.initState();
     // Show demo code if provided

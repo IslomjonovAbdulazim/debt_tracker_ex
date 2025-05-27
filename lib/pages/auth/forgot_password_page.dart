@@ -127,6 +127,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
+                    onFieldSubmitted: (_) => _handleForgotPassword(),
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter your email',
@@ -189,37 +194,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     child: const Text(
                       'Back to Login',
                       style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Info Box
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.amber[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.amber[700],
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'For demo purposes, the reset code will be shown on the next screen',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.amber[800],
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
