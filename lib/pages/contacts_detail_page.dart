@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/contact_model.dart';
-import '../models/debt_record_model.dart';
+import '../models/contact_model_backend.dart';
+import '../models/debt_record_model_backend.dart';
 import 'add_debt_page.dart';
 
 class ContactDetailsPage extends StatefulWidget {
-  final ContactModel contact;
+  final ContactModelBackend contact;
 
   const ContactDetailsPage({super.key, required this.contact});
 
@@ -14,7 +14,7 @@ class ContactDetailsPage extends StatefulWidget {
 }
 
 class _ContactDetailsPageState extends State<ContactDetailsPage> {
-  List<DebtRecordModel> contactDebts = [];
+  List<DebtRecordModelBackend> contactDebts = [];
   bool isLoading = true;
   double totalIOwe = 0.0;
   double totalTheyOwe = 0.0;
@@ -29,7 +29,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     setState(() => isLoading = true);
 
     try {
-      final debts = await DebtRecordModel.getDebtsByContactId(widget.contact.id);
+      final debts = await DebtRecordModelBackend.getDebtsByContactId(widget.contact.id);
 
       double myTotal = 0.0;
       double theirTotal = 0.0;
@@ -52,10 +52,18 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
       });
     } catch (e) {
       setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load contact debts: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _markDebtAsPaid(DebtRecordModel debt) async {
+  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -77,11 +85,24 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     );
 
     if (confirmed == true) {
-      final success = await DebtRecordModel.markAsPaidBack(debt.recordId);
-      if (success) {
-        _loadContactDebts();
+      try {
+        final success = await DebtRecordModelBackend.markAsPaidBack(debt.recordId);
+        if (success) {
+          _loadContactDebts();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Debt marked as paid!')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to mark debt as paid')),
+          );
+        }
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debt marked as paid!')),
+          SnackBar(
+            content: Text('Error marking debt as paid: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -346,7 +367,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     );
   }
 
-  Widget _buildDebtCard(DebtRecordModel debt) {
+  Widget _buildDebtCard(DebtRecordModelBackend debt) {
     final isOverdue = debt.isOverdue;
     final daysDifference = debt.dueDate.difference(DateTime.now()).inDays;
 

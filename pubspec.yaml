@@ -17,6 +17,7 @@ dependencies:
   device_preview: ^1.2.0
   shared_preferences: ^2.5.3
   mask_text_input_formatter: ^2.9.0
+  http:
   intl:
 
 dev_dependencies:

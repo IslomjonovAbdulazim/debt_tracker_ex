@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/contact_model.dart';
-import '../models/debt_record_model.dart';
+import '../models/contact_model_backend.dart';
+import '../models/debt_record_model_backend.dart';
 import 'contacts_page.dart';
 import 'debts_overview_page.dart';
 import 'payment_history_page.dart';
@@ -30,10 +30,10 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() => isLoading = true);
 
     try {
-      final myDebtsAmount = await DebtRecordModel.getTotalAmountIOwe();
-      final theirDebtsAmount = await DebtRecordModel.getTotalAmountTheyOweMe();
-      final allDebts = await DebtRecordModel.getAllDebtRecords();
-      final overdueDebts = await DebtRecordModel.getOverdueDebts();
+      final myDebtsAmount = await DebtRecordModelBackend.getTotalAmountIOwe();
+      final theirDebtsAmount = await DebtRecordModelBackend.getTotalAmountTheyOweMe();
+      final allDebts = await DebtRecordModelBackend.getAllDebtRecords();
+      final overdueDebts = await DebtRecordModelBackend.getOverdueDebts();
 
       setState(() {
         totalIOwe = myDebtsAmount;
@@ -44,11 +44,20 @@ class _DashboardPageState extends State<DashboardPage> {
       });
     } catch (e) {
       setState(() => isLoading = false);
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load dashboard data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _showContactSelectionDialog(bool isMyDebt) async {
-    final contacts = await ContactModel.getAllContacts();
+    final contacts = await ContactModelBackend.getAllContacts();
 
     if (contacts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

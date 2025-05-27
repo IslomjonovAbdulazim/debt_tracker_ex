@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/debt_record_model.dart';
+import '../models/debt_record_model_backend.dart';
 
 class DebtsPage extends StatefulWidget {
   final int initialTabIndex;
@@ -13,9 +13,9 @@ class DebtsPage extends StatefulWidget {
 
 class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<DebtRecordModel> myDebts = [];
-  List<DebtRecordModel> theirDebts = [];
-  List<DebtRecordModel> overdueDebts = [];
+  List<DebtRecordModelBackend> myDebts = [];
+  List<DebtRecordModelBackend> theirDebts = [];
+  List<DebtRecordModelBackend> overdueDebts = [];
   bool isLoading = true;
 
   @override
@@ -39,9 +39,9 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     setState(() => isLoading = true);
 
     try {
-      final myDebtsList = await DebtRecordModel.getMyDebts();
-      final theirDebtsList = await DebtRecordModel.getTheirDebts();
-      final overdueDebtsList = await DebtRecordModel.getOverdueDebts();
+      final myDebtsList = await DebtRecordModelBackend.getMyDebts();
+      final theirDebtsList = await DebtRecordModelBackend.getTheirDebts();
+      final overdueDebtsList = await DebtRecordModelBackend.getOverdueDebts();
 
       setState(() {
         myDebts = myDebtsList;
@@ -51,10 +51,18 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
       });
     } catch (e) {
       setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load debts: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _markDebtAsPaid(DebtRecordModel debt) async {
+  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -76,11 +84,24 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     );
 
     if (confirmed == true) {
-      final success = await DebtRecordModel.markAsPaidBack(debt.recordId);
-      if (success) {
-        _loadDebts();
+      try {
+        final success = await DebtRecordModelBackend.markAsPaidBack(debt.recordId);
+        if (success) {
+          _loadDebts();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Debt marked as paid!')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to mark debt as paid')),
+          );
+        }
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debt marked as paid!')),
+          SnackBar(
+            content: Text('Error marking debt as paid: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -135,7 +156,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildDebtsList(List<DebtRecordModel> debts, bool? isMyDebt) {
+  Widget _buildDebtsList(List<DebtRecordModelBackend> debts, bool? isMyDebt) {
     if (debts.isEmpty) {
       return _buildEmptyState(isMyDebt);
     }
@@ -268,7 +289,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildDebtCard(DebtRecordModel debt) {
+  Widget _buildDebtCard(DebtRecordModelBackend debt) {
     final isOverdue = debt.isOverdue;
     final daysDifference = debt.dueDate.difference(DateTime.now()).inDays;
 

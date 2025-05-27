@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/auth_model.dart';
+import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
 
 class ResetPasswordPage extends StatefulWidget {
@@ -75,7 +75,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModel.verifyResetCode(
+      final result = await AuthModelBackend.verifyResetCode(
         email: widget.email,
         code: code,
       );
@@ -120,7 +120,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModel.resetPassword(
+      final result = await AuthModelBackend.resetPassword(
         email: widget.email,
         newPassword: _newPasswordController.text,
       );

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'models/auth_model.dart';
+import 'models/auth_model_backend.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await AuthModel.logout();
+  // await AuthModelBackend.logout(); // Uncomment to force logout for testing
   runApp(const DebtTrackerApp());
 }
 
@@ -76,7 +76,7 @@ class _AuthCheckerState extends State<AuthChecker> {
   }
 
   Future<void> _checkAuthStatus() async {
-    final isLoggedIn = await AuthModel.isLoggedIn();
+    final isLoggedIn = await AuthModelBackend.isLoggedIn();
     setState(() {
       _isLoggedIn = isLoggedIn;
       _isLoading = false;

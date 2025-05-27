@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/auth_model.dart';
+import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
 import 'verify_email_page.dart';
 
@@ -35,7 +35,7 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModel.register(
+      final result = await AuthModelBackend.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),

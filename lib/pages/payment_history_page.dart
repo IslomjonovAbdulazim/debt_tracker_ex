@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/payment_history_model.dart';
+import '../models/payment_history_model_backend.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -11,9 +11,9 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<PaymentHistoryModel> allPayments = [];
-  List<PaymentHistoryModel> myPayments = [];
-  List<PaymentHistoryModel> theirPayments = [];
+  List<PaymentHistoryModelBackend> allPayments = [];
+  List<PaymentHistoryModelBackend> myPayments = [];
+  List<PaymentHistoryModelBackend> theirPayments = [];
   bool isLoading = true;
 
   @override
@@ -33,9 +33,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     setState(() => isLoading = true);
 
     try {
-      final allPaymentsList = await PaymentHistoryModel.getAllPaymentHistories();
-      final myPaymentsList = await PaymentHistoryModel.getMyPayments();
-      final theirPaymentsList = await PaymentHistoryModel.getTheirPayments();
+      final allPaymentsList = await PaymentHistoryModelBackend.getAllPaymentHistories();
+      final myPaymentsList = await PaymentHistoryModelBackend.getMyPayments();
+      final theirPaymentsList = await PaymentHistoryModelBackend.getTheirPayments();
 
       // Sort all lists by payment date (newest first)
       allPaymentsList.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
@@ -50,6 +50,14 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       });
     } catch (e) {
       setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load payment history: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -102,7 +110,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildPaymentsList(List<PaymentHistoryModel> payments, bool? wasMyDebt) {
+  Widget _buildPaymentsList(List<PaymentHistoryModelBackend> payments, bool? wasMyDebt) {
     if (payments.isEmpty) {
       return _buildEmptyState(wasMyDebt);
     }
@@ -239,7 +247,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildPaymentCard(PaymentHistoryModel payment) {
+  Widget _buildPaymentCard(PaymentHistoryModelBackend payment) {
     final isRecent = DateTime.now().difference(payment.paymentDate).inDays < 7;
 
     return Card(
@@ -307,7 +315,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\${payment.paidAmount.toStringAsFixed(2)}',
+                      '\$${payment.paidAmount.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -334,7 +342,6 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                         Text(
                           DateFormat('MMM dd').format(payment.paymentDate),
                           style: TextStyle(
-                            fontSize: 12,
                             color: isRecent ? Colors.blue[600] : Colors.grey[600],
                             fontWeight: isRecent ? FontWeight.w600 : FontWeight.normal,
                           ),

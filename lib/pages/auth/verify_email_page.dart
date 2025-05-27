@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/auth_model.dart';
+import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
@@ -55,7 +55,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModel.verifyEmail(
+      final result = await AuthModelBackend.verifyEmail(
         email: widget.email,
         code: code,
       );
@@ -103,7 +103,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
     try {
       // For demo, just generate a new code
-      final result = await AuthModel.register(
+      final result = await AuthModelBackend.register(
         email: widget.email,
         password: 'temp', // This won't actually re-register
         fullName: 'temp',

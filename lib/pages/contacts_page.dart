@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../models/contact_model.dart';
-import '../models/debt_record_model.dart';
+import '../models/contact_model_backend.dart';
+import '../models/debt_record_model_backend.dart';
 import 'contacts_detail_page.dart';
 
 class ContactsPage extends StatefulWidget {
@@ -12,8 +12,8 @@ class ContactsPage extends StatefulWidget {
 }
 
 class _ContactsPageState extends State<ContactsPage> {
-  List<ContactModel> contacts = [];
-  List<ContactModel> filteredContacts = [];
+  List<ContactModelBackend> contacts = [];
+  List<ContactModelBackend> filteredContacts = [];
   bool isLoading = true;
   final TextEditingController searchController = TextEditingController();
 
@@ -34,7 +34,7 @@ class _ContactsPageState extends State<ContactsPage> {
     setState(() => isLoading = true);
 
     try {
-      final loadedContacts = await ContactModel.getAllContacts();
+      final loadedContacts = await ContactModelBackend.getAllContacts();
       setState(() {
         contacts = loadedContacts;
         filteredContacts = loadedContacts;
@@ -42,6 +42,14 @@ class _ContactsPageState extends State<ContactsPage> {
       });
     } catch (e) {
       setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load contacts: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -108,14 +116,14 @@ class _ContactsPageState extends State<ContactsPage> {
                 return;
               }
 
-              final newContact = ContactModel(
+              final newContact = ContactModelBackend(
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
                 fullName: nameController.text.trim(),
                 phoneNumber: phoneController.text.trim(),
                 createdDate: DateTime.now(),
               );
 
-              final success = await ContactModel.createContact(newContact);
+              final success = await ContactModelBackend.createContact(newContact);
 
               if (success) {
                 Navigator.pop(context);
@@ -136,48 +144,61 @@ class _ContactsPageState extends State<ContactsPage> {
     );
   }
 
-  Future<void> _deleteContact(ContactModel contact) async {
-    // Check if contact has active debts
-    final contactDebts = await DebtRecordModel.getDebtsByContactId(contact.id);
-    final activeDebts = contactDebts.where((debt) => !debt.isPaidBack).toList();
+  Future<void> _deleteContact(ContactModelBackend contact) async {
+    try {
+      // Check if contact has active debts
+      final contactDebts = await DebtRecordModelBackend.getDebtsByContactId(contact.id);
+      final activeDebts = contactDebts.where((debt) => !debt.isPaidBack).toList();
 
-    if (activeDebts.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot delete contact with active debts'),
-          backgroundColor: Colors.orange,
+      if (activeDebts.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot delete contact with active debts'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete Contact'),
+          content: Text('Are you sure you want to delete ${contact.fullName}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
         ),
       );
-      return;
-    }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Contact'),
-        content: Text('Are you sure you want to delete ${contact.fullName}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      final success = await ContactModel.deleteContact(contact.id);
-      if (success) {
-        _loadContacts();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contact deleted successfully!')),
-        );
+      if (confirmed == true) {
+        final success = await ContactModelBackend.deleteContact(contact.id);
+        if (success) {
+          _loadContacts();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contact deleted successfully!')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete contact')),
+          );
+        }
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting contact: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -293,7 +314,7 @@ class _ContactsPageState extends State<ContactsPage> {
     );
   }
 
-  Widget _buildContactCard(ContactModel contact) {
+  Widget _buildContactCard(ContactModelBackend contact) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/contact_model.dart';
-import '../models/debt_record_model.dart';
+import '../models/contact_model_backend.dart';
+import '../models/debt_record_model_backend.dart';
 
 class AddDebtPage extends StatefulWidget {
-  final ContactModel contact;
+  final ContactModelBackend contact;
   final bool isMyDebt;
 
   const AddDebtPage({
@@ -64,7 +64,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
     try {
       final double amount = double.parse(_amountController.text);
 
-      final newDebt = DebtRecordModel(
+      final newDebt = DebtRecordModelBackend(
         recordId: DateTime.now().millisecondsSinceEpoch.toString(),
         contactId: widget.contact.id,
         contactName: widget.contact.fullName,
@@ -75,7 +75,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
         isMyDebt: widget.isMyDebt,
       );
 
-      final success = await DebtRecordModel.createDebtRecord(newDebt);
+      final success = await DebtRecordModelBackend.createDebtRecord(newDebt);
 
       if (success) {
         Navigator.pop(context, true); // Return true to indicate success
@@ -89,7 +89,10 @@ class _AddDebtPageState extends State<AddDebtPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid amount entered')),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isLoading = false);

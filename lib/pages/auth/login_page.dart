@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/auth_model.dart';
+import '../../models/auth_model_backend.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 import 'verify_email_page.dart';
@@ -32,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModel.login(
+      final result = await AuthModelBackend.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
