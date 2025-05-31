@@ -8,7 +8,6 @@ import '../services/api_service.dart';
 import '../config/api_config.dart';
 import 'contacts_page.dart';
 import 'debts_overview_page.dart';
-import 'payment_history_page.dart';
 import 'add_debt_page.dart';
 import 'auth/login_page.dart';
 
@@ -34,24 +33,28 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppLogger.lifecycle('Dashboard initialized');
     _loadDashboardData();
-    _loadDebtsSummary();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AppLogger.lifecycle('Dashboard disposed');
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppLogger.lifecycle('App state changed: $state');
     if (state == AppLifecycleState.resumed) {
       _loadDashboardData();
     }
   }
 
   Future<void> _loadDashboardData() async {
+    final stopwatch = Stopwatch()..start();
+
     if (!mounted) return;
 
     setState(() {
@@ -59,31 +62,45 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       errorMessage = null;
     });
 
+    AppLogger.info('Loading dashboard data', tag: 'DASHBOARD');
+
     try {
+      // Check authentication first
       final isLoggedIn = await AuthModelBackend.isLoggedIn();
       if (!isLoggedIn) {
+        AppLogger.warning('User not logged in, redirecting to login', tag: 'DASHBOARD');
         _navigateToLogin();
         return;
       }
 
-      // Load dashboard data concurrently
+      // Load dashboard data using new API methods
       final results = await Future.wait([
-        _loadDebtsSummary(),
+        _loadHomeOverview(),
         _loadContactsCount(),
       ]);
 
-      final summarySuccess = results[0] as bool;
+      final overviewSuccess = results[0] as bool;
       final contactsSuccess = results[1] as bool;
+
+      stopwatch.stop();
+      AppLogger.performance('Dashboard load', stopwatch.elapsed);
 
       if (mounted) {
         setState(() {
           isLoading = false;
-          if (!summarySuccess && !contactsSuccess) {
+          if (!overviewSuccess && !contactsSuccess) {
             errorMessage = 'Failed to load dashboard data';
+            AppLogger.error('Dashboard load failed completely', tag: 'DASHBOARD');
+          } else if (!overviewSuccess) {
+            errorMessage = 'Could not load debt summary';
+            AppLogger.warning('Overview load failed but contacts succeeded', tag: 'DASHBOARD');
           }
         });
       }
     } catch (e) {
+      stopwatch.stop();
+      AppLogger.error('Dashboard load error', tag: 'DASHBOARD', error: e);
+
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -93,38 +110,46 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     }
   }
 
-  Future<bool> _loadDebtsSummary() async {
-    final summaryResult = await DebtRecordModelBackend.getDebtsSummary();
-    print('\n\n\n\n\n\n----------------');
-    AppLogger.info(summaryResult.toString());
-    setState(() {
-      totalIOwe = summaryResult['total_i_owe'] ?? 0.0;
-      totalTheyOwe = summaryResult['total_they_owe'] ?? 0.0;
-      activeDebts = summaryResult['active_debts_count'] ?? 0;
-      overdueCount = summaryResult['overdue_debts_count'] ?? 0;
-    });
+  Future<bool> _loadHomeOverview() async {
     try {
-      // Use the new summary method from the updated model
+      AppLogger.info('Loading home overview', tag: 'DASHBOARD');
 
+      // Use the new getHomeOverview method
+      final overview = await DebtRecordModelBackend.getHomeOverview();
 
-      if (summaryResult['success'] == true) {
+      if (overview['success'] == true) {
         if (mounted) {
-
+          setState(() {
+            totalIOwe = overview['total_i_owe']?.toDouble() ?? 0.0;
+            totalTheyOwe = overview['total_they_owe']?.toDouble() ?? 0.0;
+            activeDebts = overview['active_debts_count'] ?? 0;
+            overdueCount = overview['overdue_debts_count'] ?? 0;
+          });
         }
+
+        AppLogger.info('Home overview loaded successfully', tag: 'DASHBOARD', data: {
+          'totalIOwe': totalIOwe,
+          'totalTheyOwe': totalTheyOwe,
+          'activeDebts': activeDebts,
+          'overdueCount': overdueCount,
+        });
+
         return true;
       } else {
-        // Fallback: try to get individual debt records
-        return await _loadDebtsIndividually();
+        AppLogger.warning('Home overview API failed, trying fallback calculations', tag: 'DASHBOARD');
+        return await _loadOverviewFallback();
       }
     } catch (e) {
-      print('Load debts summary error: $e');
-      // Fallback: try to get individual debt records
-      return await _loadDebtsIndividually();
+      AppLogger.error('Home overview load error', tag: 'DASHBOARD', error: e);
+      return await _loadOverviewFallback();
     }
   }
 
-  Future<bool> _loadDebtsIndividually() async {
+  Future<bool> _loadOverviewFallback() async {
     try {
+      AppLogger.info('Using fallback calculations for overview', tag: 'DASHBOARD');
+
+      // Fallback to client-side calculations using updated methods
       final results = await Future.wait([
         DebtRecordModelBackend.getTotalAmountIOwe(),
         DebtRecordModelBackend.getTotalAmountTheyOweMe(),
@@ -145,24 +170,36 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           overdueCount = overdueDebts.length;
         });
       }
+
+      AppLogger.info('Fallback calculations completed', tag: 'DASHBOARD', data: {
+        'totalIOwe': totalIOwe,
+        'totalTheyOwe': totalTheyOwe,
+        'activeDebts': activeDebts,
+        'overdueCount': overdueCount,
+      });
+
       return true;
     } catch (e) {
-      print('Load debts individually error: $e');
+      AppLogger.error('Fallback calculations failed', tag: 'DASHBOARD', error: e);
       return false;
     }
   }
 
   Future<bool> _loadContactsCount() async {
     try {
+      AppLogger.info('Loading contacts count', tag: 'DASHBOARD');
+
       final contacts = await ContactModelBackend.getAllContacts();
       if (mounted) {
         setState(() {
           totalContacts = contacts.length;
         });
       }
+
+      AppLogger.info('Contacts count loaded: $totalContacts', tag: 'DASHBOARD');
       return true;
     } catch (e) {
-      print('Load contacts count error: $e');
+      AppLogger.error('Contacts count load error', tag: 'DASHBOARD', error: e);
       return false;
     }
   }
@@ -182,6 +219,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
   }
 
   void _navigateToLogin() {
+    AppLogger.navigation('Dashboard', 'Login');
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -191,6 +229,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   Future<void> _showContactSelectionDialog(bool isMyDebt) async {
     try {
+      AppLogger.userAction('Quick add debt initiated', context: {'isMyDebt': isMyDebt});
+
       setState(() => isLoading = true);
       final contacts = await ContactModelBackend.getAllContacts();
       setState(() => isLoading = false);
@@ -198,13 +238,16 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       if (!mounted) return;
 
       if (contacts.isEmpty) {
+        AppLogger.info('No contacts found, showing add contact dialog', tag: 'DASHBOARD');
         _showAddContactFirstDialog();
         return;
       }
 
+      AppLogger.info('Showing contact selection for ${contacts.length} contacts', tag: 'DASHBOARD');
       _showContactSelectionSheet(contacts, isMyDebt);
     } catch (e) {
       setState(() => isLoading = false);
+      AppLogger.error('Contact selection error', tag: 'DASHBOARD', error: e);
       _showErrorSnackBar('Failed to load contacts: ${_getErrorMessage(e)}');
     }
   }
@@ -331,6 +374,13 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
   }
 
   void _navigateToAddDebt(ContactModelBackend contact, bool isMyDebt) {
+    AppLogger.navigation('Dashboard', 'AddDebt');
+    AppLogger.userAction('Navigate to add debt', context: {
+      'contactId': contact.id,
+      'contactName': contact.fullName,
+      'isMyDebt': isMyDebt,
+    });
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -339,14 +389,21 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           isMyDebt: isMyDebt,
         ),
       ),
-    ).then((_) => _loadDashboardData());
+    ).then((_) {
+      AppLogger.info('Returned from add debt, refreshing dashboard', tag: 'DASHBOARD');
+      _loadDashboardData();
+    });
   }
 
   void _navigateToContacts() {
+    AppLogger.navigation('Dashboard', 'Contacts');
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ContactsPage()),
-    ).then((_) => _loadDashboardData());
+    ).then((_) {
+      AppLogger.info('Returned from contacts, refreshing dashboard', tag: 'DASHBOARD');
+      _loadDashboardData();
+    });
   }
 
   void _showErrorSnackBar(String message) {
@@ -365,6 +422,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
   }
 
   Future<void> _logout() async {
+    AppLogger.userAction('Logout initiated');
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -389,8 +448,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     if (confirmed == true) {
       try {
         await AuthModelBackend.logout();
+        AppLogger.authEvent('Logout successful');
         _navigateToLogin();
       } catch (e) {
+        AppLogger.error('Logout error', tag: 'DASHBOARD', error: e);
         _showErrorSnackBar('Failed to logout: ${_getErrorMessage(e)}');
       }
     }
@@ -411,7 +472,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: isLoading ? null : _loadDashboardData,
+            onPressed: isLoading ? null : () {
+              AppLogger.userAction('Manual refresh triggered');
+              _loadDashboardData();
+            },
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -458,7 +522,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     }
 
     return RefreshIndicator(
-      onRefresh: _loadDashboardData,
+      onRefresh: () {
+        AppLogger.userAction('Pull to refresh triggered');
+        return _loadDashboardData();
+      },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20),
@@ -511,7 +578,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: _loadDashboardData,
+              onPressed: () {
+                AppLogger.userAction('Error retry button pressed');
+                _loadDashboardData();
+              },
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
@@ -716,21 +786,13 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           'See all active and completed debts',
           Icons.receipt_long_outlined,
           Theme.of(context).colorScheme.tertiary,
-              () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const DebtsPage()),
-          ).then((_) => _loadDashboardData()),
-        ),
-        const SizedBox(height: 12),
-        _buildActionCard(
-          'Payment History',
-          'Review all payment records',
-          Icons.history,
-          Theme.of(context).colorScheme.primary,
-              () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HistoryPage()),
-          ).then((_) => _loadDashboardData()),
+              () {
+            AppLogger.navigation('Dashboard', 'DebtsPage');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DebtsPage()),
+            ).then((_) => _loadDashboardData());
+          },
         ),
       ],
     );
@@ -738,12 +800,15 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   Widget _buildMoneyCardWithAction(String title, double amount, Color color, IconData icon, int tabIndex) {
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DebtsPage(initialTabIndex: tabIndex),
-        ),
-      ).then((_) => _loadDashboardData()),
+      onTap: () {
+        AppLogger.userAction('Money card tapped', context: {'title': title, 'tabIndex': tabIndex});
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DebtsPage(initialTabIndex: tabIndex),
+          ),
+        ).then((_) => _loadDashboardData());
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: DebtThemeUtils.getFinancialCardDecoration(
@@ -802,12 +867,15 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   Widget _buildStatusCard(String title, String value, Color color, IconData icon, int? tabIndex) {
     return GestureDetector(
-      onTap: tabIndex != null ? () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DebtsPage(initialTabIndex: tabIndex),
-        ),
-      ).then((_) => _loadDashboardData()) : null,
+      onTap: tabIndex != null ? () {
+        AppLogger.userAction('Status card tapped', context: {'title': title, 'tabIndex': tabIndex});
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DebtsPage(initialTabIndex: tabIndex),
+          ),
+        ).then((_) => _loadDashboardData());
+      } : null,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: DebtThemeUtils.getFinancialCardDecoration(
@@ -871,7 +939,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          AppLogger.userAction('Action card tapped', context: {'title': title});
+          onTap();
+        },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),

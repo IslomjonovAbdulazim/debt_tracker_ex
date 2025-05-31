@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../models/contact_model_backend.dart';
 import '../models/debt_record_model_backend.dart';
+import '../config/app_theme.dart';
+import '../config/app_logger.dart';
 import 'contacts_detail_page.dart';
 
 class ContactsPage extends StatefulWidget {
@@ -20,6 +22,7 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void initState() {
     super.initState();
+    AppLogger.lifecycle('ContactsPage initialized');
     _loadContacts();
     searchController.addListener(_filterContacts);
   }
@@ -27,26 +30,40 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void dispose() {
     searchController.dispose();
+    AppLogger.lifecycle('ContactsPage disposed');
     super.dispose();
   }
 
   Future<void> _loadContacts() async {
     setState(() => isLoading = true);
 
+    final stopwatch = Stopwatch()..start();
+    AppLogger.info('Loading contacts', tag: 'CONTACTS');
+
     try {
       final loadedContacts = await ContactModelBackend.getAllContacts();
+
+      stopwatch.stop();
+      AppLogger.performance('Contacts load', stopwatch.elapsed, data: {
+        'contactCount': loadedContacts.length,
+      });
+
       setState(() {
         contacts = loadedContacts;
         filteredContacts = loadedContacts;
         isLoading = false;
       });
     } catch (e) {
+      stopwatch.stop();
+      AppLogger.error('Failed to load contacts', tag: 'CONTACTS', error: e);
+
       setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load contacts: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Failed to load contacts: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -57,12 +74,22 @@ class _ContactsPageState extends State<ContactsPage> {
     final query = searchController.text.toLowerCase();
     setState(() {
       filteredContacts = contacts
-          .where((contact) => contact.fullName.toLowerCase().contains(query))
+          .where((contact) =>
+      contact.fullName.toLowerCase().contains(query) ||
+          contact.phoneNumber.contains(query))
           .toList();
+    });
+
+    AppLogger.userAction('Contacts filtered', context: {
+      'query': query,
+      'resultCount': filteredContacts.length,
     });
   }
 
   Future<void> _showAddContactDialog() async {
+    AppLogger.userAction('Add contact dialog opened');
+
+    final theme = Theme.of(context);
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
 
@@ -74,17 +101,35 @@ class _ContactsPageState extends State<ContactsPage> {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Text('Add New Contact'),
+        backgroundColor: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Add New Contact',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
+              style: theme.textTheme.bodyLarge,
+              decoration: InputDecoration(
                 labelText: 'Full Name',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+                labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                prefixIcon: Icon(
+                  Icons.person,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
               ),
               textCapitalization: TextCapitalization.words,
             ),
@@ -93,31 +138,57 @@ class _ContactsPageState extends State<ContactsPage> {
               controller: phoneController,
               inputFormatters: [phoneMaskFormatter],
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
+              style: theme.textTheme.bodyLarge,
+              decoration: InputDecoration(
                 labelText: 'Phone Number',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
+                labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                prefixIcon: Icon(
+                  Icons.phone,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 hintText: '+998 90 123 45 67',
+                hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () {
+              AppLogger.userAction('Add contact cancelled');
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
+              AppLogger.userAction('Add contact submit attempt');
+
               if (nameController.text.trim().isEmpty || phoneController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill all fields')),
+                  SnackBar(
+                    content: const Text('Please fill all fields'),
+                    backgroundColor: theme.colorScheme.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
                 return;
               }
 
               final newContact = ContactModelBackend(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                id: '', // Will be set by API
                 fullName: nameController.text.trim(),
                 phoneNumber: phoneController.text.trim(),
                 createdDate: DateTime.now(),
@@ -126,17 +197,32 @@ class _ContactsPageState extends State<ContactsPage> {
               final result = await ContactModelBackend.createContact(newContact);
 
               if (result['success'] == true) {
+                AppLogger.dataOperation('CREATE', 'Contact', success: true);
                 Navigator.pop(context);
                 _loadContacts();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Contact added successfully!')),
+                  SnackBar(
+                    content: const Text('Contact added successfully!'),
+                    backgroundColor: theme.colorScheme.primary,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               } else {
+                AppLogger.dataOperation('CREATE', 'Contact', success: false, data: result);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Failed to add contact')),
+                  SnackBar(
+                    content: Text(result['message'] ?? 'Failed to add contact'),
+                    backgroundColor: theme.colorScheme.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Add Contact'),
           ),
         ],
@@ -145,16 +231,29 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   Future<void> _deleteContact(ContactModelBackend contact) async {
+    AppLogger.userAction('Delete contact attempt', context: {
+      'contactId': contact.id,
+      'contactName': contact.fullName,
+    });
+
+    final theme = Theme.of(context);
+
     try {
       // Check if contact has active debts
       final contactDebts = await DebtRecordModelBackend.getDebtsByContactId(contact.id);
       final activeDebts = contactDebts.where((debt) => !debt.isPaidBack).toList();
 
       if (activeDebts.isNotEmpty) {
+        AppLogger.warning('Cannot delete contact with active debts', tag: 'CONTACTS', data: {
+          'contactId': contact.id,
+          'activeDebtsCount': activeDebts.length,
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot delete contact with active debts'),
-            backgroundColor: Colors.orange,
+          SnackBar(
+            content: const Text('Cannot delete contact with active debts'),
+            backgroundColor: theme.colorScheme.secondary,
+            behavior: SnackBarBehavior.floating,
           ),
         );
         return;
@@ -163,16 +262,37 @@ class _ContactsPageState extends State<ContactsPage> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Delete Contact'),
-          content: Text('Are you sure you want to delete ${contact.fullName}?'),
+          backgroundColor: theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Delete Contact',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to delete ${contact.fullName}?',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: const Text('Delete'),
             ),
           ],
@@ -182,21 +302,35 @@ class _ContactsPageState extends State<ContactsPage> {
       if (confirmed == true) {
         final result = await ContactModelBackend.deleteContact(contact.id);
         if (result['success'] == true) {
+          AppLogger.dataOperation('DELETE', 'Contact', success: true, data: {
+            'contactId': contact.id,
+          });
           _loadContacts();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contact deleted successfully!')),
+            SnackBar(
+              content: const Text('Contact deleted successfully!'),
+              backgroundColor: theme.colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         } else {
+          AppLogger.dataOperation('DELETE', 'Contact', success: false, data: result);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete contact')),
+            SnackBar(
+              content: Text(result['message'] ?? 'Failed to delete contact'),
+              backgroundColor: theme.colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       }
     } catch (e) {
+      AppLogger.error('Delete contact error', tag: 'CONTACTS', error: e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error deleting contact: $e'),
-          backgroundColor: Colors.red,
+          content: Text('Error deleting contact: ${e.toString()}'),
+          backgroundColor: theme.colorScheme.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -204,17 +338,43 @@ class _ContactsPageState extends State<ContactsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = DebtThemeUtils.isDark(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
-        title: const Text('Contacts'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+        title: Row(
+          children: [
+            Icon(Icons.people, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Contacts'),
+            if (contacts.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${contacts.length}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadContacts,
+            onPressed: () {
+              AppLogger.userAction('Manual refresh triggered');
+              _loadContacts();
+            },
           ),
         ],
       ),
@@ -222,16 +382,26 @@ class _ContactsPageState extends State<ContactsPage> {
         children: [
           // Search Bar
           Container(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: searchController,
+              style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 hintText: 'Search contacts...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 suffixIcon: searchController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: Icon(
+                    Icons.clear,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   onPressed: () {
                     searchController.clear();
                     _filterContacts();
@@ -239,11 +409,11 @@ class _ContactsPageState extends State<ContactsPage> {
                 )
                     : null,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
@@ -252,17 +422,34 @@ class _ContactsPageState extends State<ContactsPage> {
           // Contacts List
           Expanded(
             child: isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: theme.colorScheme.primary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading contacts...',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            )
                 : filteredContacts.isEmpty
-                ? _buildEmptyState()
+                ? _buildEmptyState(theme)
                 : RefreshIndicator(
-              onRefresh: _loadContacts,
+              onRefresh: () {
+                AppLogger.userAction('Pull to refresh triggered');
+                return _loadContacts();
+              },
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: filteredContacts.length,
                 itemBuilder: (context, index) {
                   final contact = filteredContacts[index];
-                  return _buildContactCard(contact);
+                  return _buildContactCard(contact, theme);
                 },
               ),
             ),
@@ -273,59 +460,90 @@ class _ContactsPageState extends State<ContactsPage> {
         onPressed: _showAddContactDialog,
         icon: const Icon(Icons.person_add),
         label: const Text('Add Contact'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(ThemeData theme) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            contacts.isEmpty ? Icons.people_outline : Icons.search_off,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            contacts.isEmpty ? 'No contacts yet' : 'No contacts found',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              contacts.isEmpty ? Icons.people_outline : Icons.search_off,
+              size: 80,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            contacts.isEmpty
-                ? 'Add your first contact to get started'
-                : 'Try a different search term',
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 14,
+            const SizedBox(height: 20),
+            Text(
+              contacts.isEmpty ? 'No contacts yet' : 'No contacts found',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              contacts.isEmpty
+                  ? 'Add your first contact to get started'
+                  : 'Try a different search term',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (contacts.isEmpty) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _showAddContactDialog,
+                icon: const Icon(Icons.person_add),
+                label: const Text('Add First Contact'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildContactCard(ContactModelBackend contact) {
+  Widget _buildContactCard(ContactModelBackend contact, ThemeData theme) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      color: theme.colorScheme.surface,
       child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ContactDetailsPage(contact: contact),
-          ),
-        ).then((_) => _loadContacts()),
+        onTap: () {
+          AppLogger.userAction('Contact tapped', context: {
+            'contactId': contact.id,
+            'contactName': contact.fullName,
+          });
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ContactDetailsPage(contact: contact),
+            ),
+          ).then((_) {
+            AppLogger.info('Returned from contact details, refreshing', tag: 'CONTACTS');
+            _loadContacts();
+          });
+        },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -334,11 +552,11 @@ class _ContactsPageState extends State<ContactsPage> {
               // Avatar
               CircleAvatar(
                 radius: 24,
-                backgroundColor: Colors.blue[100],
+                backgroundColor: theme.colorScheme.primaryContainer,
                 child: Text(
                   contact.fullName.isNotEmpty ? contact.fullName[0].toUpperCase() : '?',
                   style: TextStyle(
-                    color: Colors.blue[800],
+                    color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
@@ -354,40 +572,54 @@ class _ContactsPageState extends State<ContactsPage> {
                   children: [
                     Text(
                       contact.fullName,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      contact.phoneNumber,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
+                      contact.formattedPhoneNumber,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (contact.hasEmail) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        contact.email!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
 
               // Actions
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                icon: Icon(
+                  Icons.more_vert,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                color: theme.colorScheme.surface,
                 onSelected: (value) {
                   if (value == 'delete') {
                     _deleteContact(contact);
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete'),
+                        Icon(Icons.delete, color: theme.colorScheme.error),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Delete',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
                       ],
                     ),
                   ),

@@ -3,47 +3,45 @@ class ApiConfig {
   static bool get isProduction => baseUrl.contains('api.debttracker.com');
   static bool get isDevelopment => baseUrl.contains('localhost');
   static const String baseUrl = 'http://10.10.3.132:8000/';
-  // static const String baseUrl = 'http://localhost:8080/v1';
 
   // Logging
   static bool get enableApiLogging => isDevelopment;
 
-  // Auth endpoints
-  static const String loginEndpoint = '/auth/login';
-  static const String registerEndpoint = '/auth/register';
-  static const String verifyEmailEndpoint = '/auth/verify-email';
-  static const String forgotPasswordEndpoint = '/auth/forgot-password';
-  static const String verifyResetCodeEndpoint = '/auth/verify-reset-code';
-  static const String resetPasswordEndpoint = '/auth/reset-password';
+  // Auth endpoints - Keep as they match the API docs
+  static const String loginEndpoint = '/login';
+  static const String registerEndpoint = '/register';
+  static const String verifyEmailEndpoint = '/verify-email';
+  static const String forgotPasswordEndpoint = '/forgot-password';
+  static const String verifyResetCodeEndpoint = '/verify-reset-code';
+  static const String resetPasswordEndpoint = '/reset-password';
   static const String logoutEndpoint = '/auth/logout';
   static const String getCurrentUserEndpoint = '/auth/me';
 
-  // Contact endpoints
+  // Home/Overview endpoint - New from API docs
+  static const String homeOverviewEndpoint = '/home/overview';
+
+  // Contact endpoints - Updated to match API docs
   static const String contactsEndpoint = '/contacts';
-  static const String createContactEndpoint = '/add/contacts';
-  static const String updateContactEndpoint = '/contacts'; // + /{id}
-  static const String deleteContactEndpoint = '/contacts'; // + /{id}
-  static const String searchContactsEndpoint = '/contacts'; // Use ?search= query param
+  static const String createContactEndpoint = '/contact';
+  static const String updateContactEndpoint = '/contact'; // + /{id}
+  static const String deleteContactEndpoint = '/contact'; // + /{id}
 
-  // Debt endpoints
+  // Debt endpoints - Simplified to match API docs
   static const String debtsEndpoint = '/debts';
-  static const String createDebtEndpoint = '/debts';
-  static const String updateDebtEndpoint = '/debts'; // + /{id}
-  static const String deleteDebtEndpoint = '/debts'; // + /{id}
-  static const String markDebtPaidEndpoint = '/debts'; // + /{id}/mark-paid
-  static const String myDebtsEndpoint = '/debts/my-debts';
-  static const String theirDebtsEndpoint = '/debts/their-debts';
-  static const String overdueDebtsEndpoint = '/debts/overdue';
-  static const String debtsByContactEndpoint = '/debts/contact'; // + /{contact_id}
-  static const String debtsSummaryEndpoint = '/debts/summary';
+  static const String createDebtEndpoint = '/contact-debt';
+  static const String contactDebtsEndpoint = '/contact-debts'; // + /{contact_id}
 
-  // Payment endpoints - Updated to match your API structure
-  static const String paymentsEndpoint = '/payments';
-  static const String createPaymentEndpoint = '/payments';
-  static const String myPaymentsEndpoint = '/payments/amount'; // Updated endpoint
-  static const String theirPaymentsEndpoint = '/payments/their-payments';
-  static const String recentPaymentsEndpoint = '/payments'; // Use ?date_from= query
-  static const String paymentsByContactEndpoint = '/payments'; // Use ?contact= query
+  // REMOVED: Complex debt endpoints that don't exist in API
+  // - myDebtsEndpoint
+  // - theirDebtsEndpoint
+  // - overdueDebtsEndpoint
+  // - debtsSummaryEndpoint
+  // - updateDebtEndpoint
+  // - deleteDebtEndpoint
+  // - markDebtPaidEndpoint
+
+  // REMOVED: Payment endpoints - Not mentioned in API docs
+  // Will be handled differently or removed entirely
 
   // Request timeout
   static const Duration requestTimeout = Duration(seconds: 30);

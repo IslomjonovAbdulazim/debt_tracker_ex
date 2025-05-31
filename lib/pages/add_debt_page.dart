@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/contact_model_backend.dart';
 import '../models/debt_record_model_backend.dart';
+import '../config/app_theme.dart';
+import '../config/app_logger.dart';
 
 class AddDebtPage extends StatefulWidget {
   final ContactModelBackend contact;
@@ -25,13 +27,30 @@ class _AddDebtPageState extends State<AddDebtPage> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    AppLogger.lifecycle('AddDebtPage initialized', data: {
+      'contactId': widget.contact.id,
+      'contactName': widget.contact.fullName,
+      'isMyDebt': widget.isMyDebt,
+    });
+  }
+
+  @override
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    AppLogger.lifecycle('AddDebtPage disposed');
     super.dispose();
   }
 
   Future<void> _selectDueDate() async {
+    AppLogger.userAction('Date picker opened');
+
+    final theme = Theme.of(context);
+    final financialColors = DebtThemeUtils.getFinancialColors(context);
+    final themeColor = widget.isMyDebt ? financialColors.debt! : financialColors.credit!;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDueDate,
@@ -39,9 +58,10 @@ class _AddDebtPageState extends State<AddDebtPage> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // 2 years
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: widget.isMyDebt ? Colors.red[400]! : Colors.green[400]!,
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: themeColor,
+              onPrimary: DebtThemeUtils.getContrastingTextColor(themeColor),
             ),
           ),
           child: child!,
@@ -53,19 +73,36 @@ class _AddDebtPageState extends State<AddDebtPage> {
       setState(() {
         _selectedDueDate = picked;
       });
+
+      AppLogger.userAction('Due date selected', context: {
+        'selectedDate': picked.toIso8601String(),
+        'daysFromNow': picked.difference(DateTime.now()).inDays,
+      });
     }
   }
 
   Future<void> _saveDebt() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppLogger.validation('Form', 'Validation failed');
+      return;
+    }
+
+    AppLogger.userAction('Save debt initiated', context: {
+      'amount': _amountController.text,
+      'isMyDebt': widget.isMyDebt,
+      'contactId': widget.contact.id,
+    });
 
     setState(() => _isLoading = true);
+
+    final stopwatch = Stopwatch()..start();
 
     try {
       final double amount = double.parse(_amountController.text);
 
+      // Create debt record using the updated model structure
       final newDebt = DebtRecordModelBackend(
-        recordId: DateTime.now().millisecondsSinceEpoch.toString(),
+        recordId: '', // Will be set by API
         contactId: widget.contact.id,
         contactName: widget.contact.fullName,
         debtAmount: amount,
@@ -73,44 +110,88 @@ class _AddDebtPageState extends State<AddDebtPage> {
         createdDate: DateTime.now(),
         dueDate: _selectedDueDate,
         isMyDebt: widget.isMyDebt,
+        isPaidBack: false,
       );
 
       final success = await DebtRecordModelBackend.createDebtRecord(newDebt);
 
+      stopwatch.stop();
+      AppLogger.performance('Debt creation', stopwatch.elapsed, data: {
+        'success': success,
+        'amount': amount,
+        'isMyDebt': widget.isMyDebt,
+      });
+
+      if (!mounted) return;
+
       if (success) {
+        AppLogger.dataOperation('CREATE', 'Debt', success: true, data: {
+          'contactId': widget.contact.id,
+          'amount': amount,
+          'isMyDebt': widget.isMyDebt,
+        });
+
         Navigator.pop(context, true); // Return true to indicate success
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debt record added successfully!')),
+          SnackBar(
+            content: const Text('Debt record added successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       } else {
+        AppLogger.dataOperation('CREATE', 'Debt', success: false);
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to add debt record')),
+          SnackBar(
+            content: const Text('Failed to add debt record'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      stopwatch.stop();
+      AppLogger.error('Save debt error', tag: 'ADD_DEBT', error: e);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final financialColors = DebtThemeUtils.getFinancialColors(context);
+    final isDarkMode = DebtThemeUtils.isDark(context);
+
     final String pageTitle = widget.isMyDebt ? 'I Owe Them' : 'They Owe Me';
-    final Color themeColor = widget.isMyDebt ? Colors.red[400]! : Colors.green[400]!;
+    final Color themeColor = widget.isMyDebt ? financialColors.debt! : financialColors.credit!;
+    final Color backgroundColor = widget.isMyDebt ? financialColors.debtBackground! : financialColors.creditBackground!;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: Text(pageTitle),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            AppLogger.userAction('Back button pressed');
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -122,22 +203,12 @@ class _AddDebtPageState extends State<AddDebtPage> {
               // Contact Info Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+                decoration: DebtThemeUtils.getFinancialCardDecoration(context),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor: themeColor.withOpacity(0.1),
+                      backgroundColor: backgroundColor,
                       child: Text(
                         widget.contact.fullName.isNotEmpty
                             ? widget.contact.fullName[0].toUpperCase()
@@ -156,18 +227,16 @@ class _AddDebtPageState extends State<AddDebtPage> {
                         children: [
                           Text(
                             widget.contact.fullName,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(
                             widget.contact.phoneNumber,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -176,7 +245,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.1),
+                        color: backgroundColor,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: themeColor.withOpacity(0.3)),
                       ),
@@ -198,34 +267,30 @@ class _AddDebtPageState extends State<AddDebtPage> {
               // Amount Field
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+                decoration: DebtThemeUtils.getFinancialCardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Amount',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _amountController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
                       decoration: InputDecoration(
                         hintText: '0.00',
+                        hintStyle: theme.textTheme.headlineSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                        ),
                         prefixText: '\$ ',
                         prefixStyle: TextStyle(
                           color: themeColor,
@@ -233,18 +298,24 @@ class _AddDebtPageState extends State<AddDebtPage> {
                           fontWeight: FontWeight.bold,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.outline),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: themeColor, width: 2),
                         ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.error),
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.surface,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      ),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -254,7 +325,16 @@ class _AddDebtPageState extends State<AddDebtPage> {
                         if (amount == null || amount <= 0) {
                           return 'Please enter a valid amount';
                         }
+                        if (amount > 999999.99) {
+                          return 'Amount too large';
+                        }
                         return null;
+                      },
+                      onChanged: (value) {
+                        // Auto-format the input (optional)
+                        if (value.isNotEmpty) {
+                          AppLogger.userAction('Amount input changed', context: {'length': value.length});
+                        }
                       },
                     ),
                   ],
@@ -266,47 +346,56 @@ class _AddDebtPageState extends State<AddDebtPage> {
               // Description Field
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+                decoration: DebtThemeUtils.getFinancialCardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Description',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 3,
+                      style: theme.textTheme.bodyLarge,
                       decoration: InputDecoration(
                         hintText: 'What is this debt for? (e.g., lunch, loan, etc.)',
+                        hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.outline),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: themeColor, width: 2),
                         ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.error),
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.surface,
                         contentPadding: const EdgeInsets.all(16),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter a description';
+                        }
+                        if (value.trim().length < 3) {
+                          return 'Description must be at least 3 characters';
+                        }
+                        if (value.trim().length > 500) {
+                          return 'Description too long (max 500 characters)';
                         }
                         return null;
                       },
@@ -320,52 +409,55 @@ class _AddDebtPageState extends State<AddDebtPage> {
               // Due Date Field
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+                decoration: DebtThemeUtils.getFinancialCardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Due Date',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
                     InkWell(
                       onTap: _selectDueDate,
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: theme.colorScheme.outline),
+                          borderRadius: BorderRadius.circular(12),
+                          color: theme.colorScheme.surface,
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, color: themeColor),
+                            Icon(Icons.calendar_today, color: themeColor, size: 20),
                             const SizedBox(width: 12),
-                            Text(
-                              DateFormat('MMMM dd, yyyy').format(_selectedDueDate),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                            Expanded(
+                              child: Text(
+                                DateFormat('MMMM dd, yyyy').format(_selectedDueDate),
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: theme.colorScheme.onSurface,
+                                ),
                               ),
                             ),
-                            const Spacer(),
-                            Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 20,
+                            ),
                           ],
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Due in ${_selectedDueDate.difference(DateTime.now()).inDays} days',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -376,32 +468,42 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
               // Save Button
               SizedBox(
-                height: 50,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveDebt,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: themeColor,
-                    foregroundColor: Colors.white,
+                    foregroundColor: DebtThemeUtils.getContrastingTextColor(themeColor),
+                    disabledBackgroundColor: theme.colorScheme.onSurface.withOpacity(0.12),
+                    elevation: _isLoading ? 0 : 2,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    elevation: 2,
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                    height: 20,
-                    width: 20,
+                      ? SizedBox(
+                    height: 24,
+                    width: 24,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        DebtThemeUtils.getContrastingTextColor(themeColor),
+                      ),
                     ),
                   )
-                      : const Text(
-                    'Add Debt Record',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                      : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_circle_outline, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Add Debt Record',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: DebtThemeUtils.getContrastingTextColor(themeColor),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -410,12 +512,22 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
               // Cancel Button
               TextButton(
-                onPressed: _isLoading ? null : () => Navigator.pop(context),
-                child: const Text(
+                onPressed: _isLoading ? null : () {
+                  AppLogger.userAction('Cancel button pressed');
+                  Navigator.pop(context);
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(
                   'Cancel',
-                  style: TextStyle(fontSize: 16),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),

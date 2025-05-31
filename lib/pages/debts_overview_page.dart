@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/debt_record_model_backend.dart';
+import '../config/app_theme.dart';
+import '../config/app_logger.dart';
 
 class DebtsPage extends StatefulWidget {
   final int initialTabIndex;
@@ -26,22 +28,43 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
+    AppLogger.lifecycle('DebtsPage initialized', data: {
+      'initialTabIndex': widget.initialTabIndex,
+    });
     _loadDebts();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    AppLogger.lifecycle('DebtsPage disposed');
     super.dispose();
   }
 
   Future<void> _loadDebts() async {
     setState(() => isLoading = true);
 
+    final stopwatch = Stopwatch()..start();
+    AppLogger.info('Loading debts data', tag: 'DEBTS');
+
     try {
-      final myDebtsList = await DebtRecordModelBackend.getMyDebts();
-      final theirDebtsList = await DebtRecordModelBackend.getTheirDebts();
-      final overdueDebtsList = await DebtRecordModelBackend.getOverdueDebts();
+      // Use the updated client-side filtering methods
+      final results = await Future.wait([
+        DebtRecordModelBackend.getMyDebts(),
+        DebtRecordModelBackend.getTheirDebts(),
+        DebtRecordModelBackend.getOverdueDebts(),
+      ]);
+
+      final myDebtsList = results[0] as List<DebtRecordModelBackend>;
+      final theirDebtsList = results[1] as List<DebtRecordModelBackend>;
+      final overdueDebtsList = results[2] as List<DebtRecordModelBackend>;
+
+      stopwatch.stop();
+      AppLogger.performance('Debts load', stopwatch.elapsed, data: {
+        'myDebtsCount': myDebtsList.length,
+        'theirDebtsCount': theirDebtsList.length,
+        'overdueDebtsCount': overdueDebtsList.length,
+      });
 
       setState(() {
         myDebts = myDebtsList;
@@ -50,119 +73,125 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
         isLoading = false;
       });
     } catch (e) {
+      stopwatch.stop();
+      AppLogger.error('Failed to load debts', tag: 'DEBTS', error: e);
+
       setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load debts: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Failed to load debts: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     }
   }
 
-  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Mark as Paid'),
-        content: Text(
-            'Mark this debt of \$${debt.debtAmount.toStringAsFixed(2)} with ${debt.contactName} as paid back?'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Mark as Paid'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        final success = await DebtRecordModelBackend.markAsPaidBack(debt.recordId);
-        if (success) {
-          _loadDebts();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Debt marked as paid!')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to mark debt as paid')),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error marking debt as paid: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  // NOTE: Removed _markDebtAsPaid method since markAsPaidBack API doesn't exist
+  // This functionality would need to be implemented differently or the API would need to support it
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final financialColors = DebtThemeUtils.getFinancialColors(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
-        title: const Text('All Debts'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+        title: Row(
+          children: [
+            Icon(Icons.receipt_long, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('All Debts'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadDebts,
+            onPressed: () {
+              AppLogger.userAction('Manual refresh triggered');
+              _loadDebts();
+            },
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.blue[600],
-          unselectedLabelColor: Colors.grey[600],
-          indicatorColor: Colors.blue[600],
+          labelColor: financialColors.debt,
+          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+          indicatorColor: financialColors.debt,
+          labelStyle: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: theme.textTheme.labelLarge,
           tabs: [
             Tab(
               text: 'I Owe (${myDebts.length})',
-              icon: const Icon(Icons.arrow_upward, size: 16),
+              icon: Icon(Icons.arrow_upward, size: 16, color: financialColors.debt),
             ),
             Tab(
               text: 'They Owe (${theirDebts.length})',
-              icon: const Icon(Icons.arrow_downward, size: 16),
+              icon: Icon(Icons.arrow_downward, size: 16, color: financialColors.credit),
             ),
             Tab(
               text: 'Overdue (${overdueDebts.length})',
-              icon: const Icon(Icons.warning, size: 16),
+              icon: Icon(Icons.warning, size: 16, color: theme.colorScheme.error),
             ),
           ],
+          onTap: (index) {
+            AppLogger.userAction('Debt tab changed', context: {'tabIndex': index});
+          },
         ),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: theme.colorScheme.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Loading debts...',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      )
           : TabBarView(
         controller: _tabController,
         children: [
-          _buildDebtsList(myDebts, true),
-          _buildDebtsList(theirDebts, false),
-          _buildDebtsList(overdueDebts, null),
+          _buildDebtsList(myDebts, true, theme, financialColors),
+          _buildDebtsList(theirDebts, false, theme, financialColors),
+          _buildDebtsList(overdueDebts, null, theme, financialColors),
         ],
       ),
     );
   }
 
-  Widget _buildDebtsList(List<DebtRecordModelBackend> debts, bool? isMyDebt) {
+  Widget _buildDebtsList(
+      List<DebtRecordModelBackend> debts,
+      bool? isMyDebt,
+      ThemeData theme,
+      FinancialColors financialColors,
+      ) {
     if (debts.isEmpty) {
-      return _buildEmptyState(isMyDebt);
+      return _buildEmptyState(isMyDebt, theme);
     }
 
     // Calculate total for this tab
     double total = debts.fold(0.0, (sum, debt) => sum + debt.debtAmount);
+
+    Color summaryColor;
+    if (isMyDebt == true) {
+      summaryColor = financialColors.debt!;
+    } else if (isMyDebt == false) {
+      summaryColor = financialColors.credit!;
+    } else {
+      summaryColor = theme.colorScheme.error;
+    }
 
     return Column(
       children: [
@@ -171,46 +200,43 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
           width: double.infinity,
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: DebtThemeUtils.getFinancialCardDecoration(context),
           child: Column(
             children: [
+              Row(
+                children: [
+                  Icon(
+                    isMyDebt == true
+                        ? Icons.arrow_upward
+                        : isMyDebt == false
+                        ? Icons.arrow_downward
+                        : Icons.warning,
+                    color: summaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Total Amount',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               Text(
-                'Total Amount',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
+                '\$${total.toStringAsFixed(2)}',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: summaryColor,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                '\$${total.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: isMyDebt == true
-                      ? Colors.red[600]
-                      : isMyDebt == false
-                      ? Colors.green[600]
-                      : Colors.orange[600],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
                 '${debts.length} ${debts.length == 1 ? 'debt' : 'debts'}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -220,13 +246,16 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
         // Debts List
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _loadDebts,
+            onRefresh: () {
+              AppLogger.userAction('Pull to refresh triggered');
+              return _loadDebts();
+            },
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: debts.length,
               itemBuilder: (context, index) {
                 final debt = debts[index];
-                return _buildDebtCard(debt);
+                return _buildDebtCard(debt, theme, financialColors);
               },
             ),
           ),
@@ -235,23 +264,27 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildEmptyState(bool? isMyDebt) {
+  Widget _buildEmptyState(bool? isMyDebt, ThemeData theme) {
     String title;
     String subtitle;
     IconData icon;
+    Color iconColor;
 
     if (isMyDebt == true) {
       title = 'No debts you owe';
       subtitle = 'You don\'t owe anyone money right now';
       icon = Icons.sentiment_satisfied;
+      iconColor = theme.colorScheme.primary;
     } else if (isMyDebt == false) {
       title = 'No one owes you';
       subtitle = 'No one owes you money right now';
       icon = Icons.sentiment_neutral;
+      iconColor = theme.colorScheme.secondary;
     } else {
       title = 'No overdue debts';
       subtitle = 'All debts are on track!';
       icon = Icons.check_circle_outline;
+      iconColor = theme.colorScheme.primary;
     }
 
     return Center(
@@ -263,23 +296,21 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
             Icon(
               icon,
               size: 80,
-              color: Colors.grey[400],
+              color: iconColor.withOpacity(0.6),
             ),
             const SizedBox(height: 20),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.grey[600],
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               subtitle,
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 16,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
               ),
               textAlign: TextAlign.center,
             ),
@@ -289,14 +320,23 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildDebtCard(DebtRecordModelBackend debt) {
+  Widget _buildDebtCard(DebtRecordModelBackend debt, ThemeData theme, FinancialColors financialColors) {
     final isOverdue = debt.isOverdue;
     final daysDifference = debt.dueDate.difference(DateTime.now()).inDays;
+    final debtColor = debt.isMyDebt ? financialColors.debt! : financialColors.credit!;
+    final debtBackgroundColor = debt.isMyDebt ? financialColors.debtBackground! : financialColors.creditBackground!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      color: theme.colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -308,17 +348,13 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                 // Contact Avatar
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: debt.isMyDebt
-                      ? Colors.red[100]
-                      : Colors.green[100],
+                  backgroundColor: debtBackgroundColor,
                   child: Text(
                     debt.contactName.isNotEmpty
                         ? debt.contactName[0].toUpperCase()
                         : '?',
                     style: TextStyle(
-                      color: debt.isMyDebt
-                          ? Colors.red[700]
-                          : Colors.green[700],
+                      color: debtColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -334,32 +370,23 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                     children: [
                       Text(
                         debt.contactName,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: debt.isMyDebt
-                              ? Colors.red[50]
-                              : Colors.green[50],
+                          color: debtBackgroundColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: debt.isMyDebt
-                                ? Colors.red[200]!
-                                : Colors.green[200]!,
-                          ),
+                          border: Border.all(color: debtColor.withOpacity(0.3)),
                         ),
                         child: Text(
                           debt.isMyDebt ? 'I Owe' : 'They Owe',
                           style: TextStyle(
-                            color: debt.isMyDebt
-                                ? Colors.red[700]
-                                : Colors.green[700],
+                            color: debtColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -369,30 +396,44 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                   ),
                 ),
 
-                // Amount
+                // Amount and Status
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${debt.debtAmount.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 20,
+                      '\${debt.debtAmount.toStringAsFixed(2)}',
+                      style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: debt.isMyDebt ? Colors.red[600] : Colors.green[600],
+                        color: debtColor,
                       ),
                     ),
-                    if (isOverdue)
+                    const SizedBox(height: 4),
+                    if (debt.isPaidBack)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.orange[100],
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'PAID',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else if (isOverdue)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.errorContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           'OVERDUE',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.orange[800],
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onErrorContainer,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -402,96 +443,47 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // Description
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 debt.debtDescription,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // Date Information
             Row(
               children: [
                 // Created Date
                 Expanded(
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Created',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('MMM dd').format(debt.createdDate),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  child: _buildDateInfo(
+                    icon: Icons.calendar_today,
+                    label: 'Created',
+                    date: DateFormat('MMM dd').format(debt.createdDate),
+                    theme: theme,
                   ),
                 ),
 
                 // Due Date
                 Expanded(
-                  child: Row(
-                    children: [
-                      Icon(
-                        isOverdue ? Icons.warning : Icons.schedule,
-                        size: 14,
-                        color: isOverdue ? Colors.orange[600] : Colors.grey[600],
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Due Date',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('MMM dd').format(debt.dueDate),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isOverdue ? Colors.orange[700] : Colors.grey[700],
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  child: _buildDateInfo(
+                    icon: isOverdue ? Icons.warning : Icons.schedule,
+                    label: 'Due Date',
+                    date: DateFormat('MMM dd').format(debt.dueDate),
+                    theme: theme,
+                    isOverdue: isOverdue,
                   ),
                 ),
 
@@ -502,17 +494,16 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                     children: [
                       Text(
                         isOverdue ? 'Overdue by' : 'Due in',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[500],
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         '${daysDifference.abs()} ${daysDifference.abs() == 1 ? 'day' : 'days'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isOverdue ? Colors.orange[700] : Colors.blue[700],
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -522,25 +513,87 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
               ],
             ),
 
-            const SizedBox(height: 12),
+            // NOTE: Removed "Mark as Paid" button since the API doesn't support this functionality
+            // This would need to be implemented differently or the API would need to support debt updates
 
-            // Action Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _markDebtAsPaid(debt),
-                icon: const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text('Mark as Paid'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue[600],
-                  side: BorderSide(color: Colors.blue[300]!),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+            const SizedBox(height: 16),
+
+            // Info message about payment functionality
+            if (!debt.isPaidBack)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Mark as paid functionality will be available when the API supports debt updates',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDateInfo({
+    required IconData icon,
+    required String label,
+    required String date,
+    required ThemeData theme,
+    bool isOverdue = false,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 14,
+          color: isOverdue ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                date,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isOverdue ? theme.colorScheme.error : theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

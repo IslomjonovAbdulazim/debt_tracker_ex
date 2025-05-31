@@ -56,6 +56,7 @@ class AppLogger {
     String? tag,
     Object? error,
     StackTrace? stackTrace,
+    Map<String, dynamic>? data,
   }) {
     if (!_shouldLog(level)) return;
 
@@ -80,6 +81,11 @@ class AppLogger {
 
     // Always print to console for visibility
     print(logMessage);
+
+    // Print structured data if provided
+    if (data != null && data.isNotEmpty) {
+      print('📊 Data: $data');
+    }
 
     if (error != null) {
       print('💥 Error: $error');
@@ -107,24 +113,24 @@ class AppLogger {
   }
 
   // Public logging methods
-  static void debug(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.debug, message, tag: tag, error: error, stackTrace: stackTrace);
+  static void debug(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    _log(LogLevel.debug, message, tag: tag, error: error, stackTrace: stackTrace, data: data);
   }
 
-  static void info(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.info, message, tag: tag, error: error, stackTrace: stackTrace);
+  static void info(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    _log(LogLevel.info, message, tag: tag, error: error, stackTrace: stackTrace, data: data);
   }
 
-  static void warning(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.warning, message, tag: tag, error: error, stackTrace: stackTrace);
+  static void warning(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    _log(LogLevel.warning, message, tag: tag, error: error, stackTrace: stackTrace, data: data);
   }
 
-  static void error(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.error, message, tag: tag, error: error, stackTrace: stackTrace);
+  static void error(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    _log(LogLevel.error, message, tag: tag, error: error, stackTrace: stackTrace, data: data);
   }
 
-  static void verbose(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.verbose, message, tag: tag, error: error, stackTrace: stackTrace);
+  static void verbose(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    _log(LogLevel.verbose, message, tag: tag, error: error, stackTrace: stackTrace, data: data);
   }
 
   // Convenience methods for common scenarios
@@ -151,10 +157,7 @@ class AppLogger {
   }
 
   static void authEvent(String event, {Map<String, dynamic>? data}) {
-    info('🔐 Auth Event: $event', tag: 'AUTH');
-    if (data != null) {
-      debug('Auth Data: $data', tag: 'AUTH');
-    }
+    info('🔐 Auth Event: $event', tag: 'AUTH', data: data);
   }
 
   static void navigation(String from, String to) {
@@ -162,44 +165,41 @@ class AppLogger {
   }
 
   static void userAction(String action, {Map<String, dynamic>? context}) {
-    info('👆 User Action: $action', tag: 'USER');
-    if (context != null) {
-      debug('Action Context: $context', tag: 'USER');
-    }
+    info('👆 User Action: $action', tag: 'USER', data: context);
   }
 
-  static void dataOperation(String operation, String type, {String? id, bool success = true}) {
+  static void dataOperation(String operation, String type, {String? id, bool success = true, Map<String, dynamic>? data}) {
     final emoji = success ? '✅' : '❌';
     final status = success ? 'SUCCESS' : 'FAILED';
     final idInfo = id != null ? ' (ID: $id)' : '';
-    info('$emoji Data $operation $type$idInfo - $status', tag: 'DATA');
+    info('$emoji Data $operation $type$idInfo - $status', tag: 'DATA', data: data);
   }
 
-  static void performance(String operation, Duration duration) {
+  static void performance(String operation, Duration duration, {Map<String, dynamic>? data}) {
     final ms = duration.inMilliseconds;
     final emoji = ms < 1000 ? '⚡' : ms < 3000 ? '🐌' : '🐢';
-    info('$emoji Performance: $operation took ${ms}ms', tag: 'PERF');
+    info('$emoji Performance: $operation took ${ms}ms', tag: 'PERF', data: data);
   }
 
   // Method to log app lifecycle events
-  static void lifecycle(String event) {
-    info('🔄 App Lifecycle: $event', tag: 'LIFECYCLE');
+  static void lifecycle(String event, {Map<String, dynamic>? data}) {
+    info('🔄 App Lifecycle: $event', tag: 'LIFECYCLE', data: data);
   }
 
   // Method to log cache operations
-  static void cache(String operation, String key, {bool hit = false}) {
+  static void cache(String operation, String key, {bool hit = false, Map<String, dynamic>? data}) {
     final emoji = hit ? '🎯' : '💾';
-    info('$emoji Cache $operation: $key', tag: 'CACHE');
+    info('$emoji Cache $operation: $key', tag: 'CACHE', data: data);
   }
 
   // Method to log validation errors
-  static void validation(String field, String error) {
-    warning('📝 Validation Error - $field: $error', tag: 'VALIDATION');
+  static void validation(String field, String error, {Map<String, dynamic>? data}) {
+    warning('📝 Validation Error - $field: $error', tag: 'VALIDATION', data: data);
   }
 
   // Method to log network connectivity
-  static void network(String status) {
+  static void network(String status, {Map<String, dynamic>? data}) {
     final emoji = status.toLowerCase().contains('connected') ? '🌐' : '📡';
-    info('$emoji Network: $status', tag: 'NETWORK');
+    info('$emoji Network: $status', tag: 'NETWORK', data: data);
   }
 }

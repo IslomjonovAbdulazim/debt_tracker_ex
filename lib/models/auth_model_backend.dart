@@ -2,73 +2,86 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../config/app_logger.dart';
 
 class AuthModelBackend {
   static final ApiService _apiService = ApiService();
 
-  final String userId;
+  final String id;
   final String email;
   final String fullName;
-  final String phoneNumber; // Added phone number as required by API
-  final bool isVerified;
-  final DateTime createdDate;
+  final String phoneNumber;
 
   AuthModelBackend({
-    required this.userId,
+    required this.id,
     required this.email,
     required this.fullName,
-    required this.phoneNumber, // Added phone number
-    required this.isVerified,
-    required this.createdDate,
+    required this.phoneNumber,
   });
+
+  // =============================================
+  // JSON SERIALIZATION - Updated for API docs
+  // =============================================
 
   // Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
-      'userId': userId,
+      'id': id,
       'email': email,
-      'fullname': fullName,  // Changed to snake_case
-      'phone_number': phoneNumber,  // Added phone number
-      'is_verified': isVerified,  // Changed to snake_case
-      'created_at': createdDate.toIso8601String(),  // Changed to snake_case
+      'fullname': fullName,
+      'phone_number': phoneNumber,
     };
   }
 
-  // Create from JSON
+  // Create from JSON - Updated to handle API response structure
   factory AuthModelBackend.fromJson(Map<String, dynamic> json) {
     return AuthModelBackend(
-      userId: json['userId'] ?? json['id']?.toString() ?? '',
+      id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
-      fullName: json['fullname'] ?? '',  // API uses snake_case
-      phoneNumber: json['phone_number'] ?? '',  // API uses snake_case
-      isVerified: json['is_verified'] ?? false,  // API uses snake_case
-      createdDate: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      fullName: json['fullname'] ?? json['full_name'] ?? '', // Handle both field names
+      phoneNumber: json['phone_number'] ?? '',
     );
   }
 
-  // Register new user - Updated to match API requirements
+  // =============================================
+  // AUTHENTICATION METHODS - Updated to match API docs
+  // =============================================
+
+  // Register new user - Updated to match API docs (/register)
   static Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String fullName,
-    required String phoneNumber, // Now required
+    required String phoneNumber,
   }) async {
     try {
+      AppLogger.authEvent('Registration attempt', data: {'email': email, 'fullname': fullName});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+        'password': password,
+        'fullname': fullName.trim(), // API expects 'fullname'
+        'phone_number': phoneNumber.trim(),
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.registerEndpoint, data: {
+        ...requestData,
+        'password': '[HIDDEN]' // Don't log password
+      });
+
       final response = await _apiService.post(
         ApiConfig.registerEndpoint,
-        {
-          'email': email.toLowerCase(),
-          'password': password,
-          'fullname': fullName,  // Send as full_name
-          'phone_number': phoneNumber,  // Send as phone_number
-        },
+        requestData,
         requiresAuth: false,
       );
 
       if (response['success']) {
+        AppLogger.authEvent('Registration successful', data: {'email': email});
+
         // Save token if present in response
         if (response['data']?['token'] != null) {
           await _saveToken(response['data']['token']);
+          AppLogger.authEvent('Token saved after registration');
         }
 
         return {
@@ -78,12 +91,15 @@ class AuthModelBackend {
           'verificationCode': response['verificationCode'], // For demo/testing
         };
       } else {
+        AppLogger.authEvent('Registration failed', data: {'message': response['message']});
         return {
           'success': false,
           'message': response['message'] ?? 'Registration failed',
+          'errors': response['errors'] ?? {},
         };
       }
     } catch (e) {
+      AppLogger.error('Registration error', tag: 'AUTH', error: e);
       return {
         'success': false,
         'message': 'Registration failed: $e',
@@ -91,44 +107,64 @@ class AuthModelBackend {
     }
   }
 
-  // Login user
+  // Login user - Updated to match API docs (/login)
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
     try {
+      AppLogger.authEvent('Login attempt', data: {'email': email});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+        'password': password,
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.loginEndpoint, data: {
+        'email': email.toLowerCase().trim(),
+        'password': '[HIDDEN]'
+      });
+
       final response = await _apiService.post(
         ApiConfig.loginEndpoint,
-        {
-          'email': email.toLowerCase(),
-          'password': password,
-        },
+        requestData,
         requiresAuth: false,
       );
 
       if (response['success']) {
+        AppLogger.authEvent('Login successful', data: {'email': email});
+
         // Save token
         if (response['data']?['token'] != null) {
           await _saveToken(response['data']['token']);
+          AppLogger.authEvent('Token saved after login');
         }
 
-        // Save current user data
-        final user = AuthModelBackend.fromJson(response['data']['user']);
-        await _saveCurrentUser(user);
+        // Save current user data if available
+        if (response['data']?['user'] != null) {
+          final user = AuthModelBackend.fromJson(response['data']['user']);
+          await _saveCurrentUser(user);
+          AppLogger.authEvent('User data cached');
+        }
 
         return {
           'success': true,
           'message': 'Login successful',
-          'user': user,
+          'user': response['data']?['user'] != null
+              ? AuthModelBackend.fromJson(response['data']['user'])
+              : null,
         };
       } else {
+        AppLogger.authEvent('Login failed', data: {'message': response['message']});
         return {
           'success': false,
           'message': response['message'] ?? 'Login failed',
           'needsVerification': response['needsVerification'] ?? false,
+          'errors': response['errors'] ?? {},
         };
       }
     } catch (e) {
+      AppLogger.error('Login error', tag: 'AUTH', error: e);
       return {
         'success': false,
         'message': 'Login failed: $e',
@@ -136,26 +172,40 @@ class AuthModelBackend {
     }
   }
 
-  // Verify email with code
+  // Verify email with code - Updated to match API docs (/verify-email)
   static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
   }) async {
     try {
+      AppLogger.authEvent('Email verification attempt', data: {'email': email});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+        'code': code.trim(), // API docs show 'code' field
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.verifyEmailEndpoint, data: requestData);
+
       final response = await _apiService.post(
         ApiConfig.verifyEmailEndpoint,
-        {
-          'email': email.toLowerCase(),
-          'otp': code,
-        },
+        requestData,
         requiresAuth: false,
       );
+
+      if (response['success']) {
+        AppLogger.authEvent('Email verification successful', data: {'email': email});
+      } else {
+        AppLogger.authEvent('Email verification failed', data: {'message': response['message']});
+      }
 
       return {
         'success': response['success'],
         'message': response['message'] ?? (response['success'] ? 'Email verified successfully' : 'Verification failed'),
+        'errors': response['errors'] ?? {},
       };
     } catch (e) {
+      AppLogger.error('Email verification error', tag: 'AUTH', error: e);
       return {
         'success': false,
         'message': 'Verification failed: $e',
@@ -163,18 +213,30 @@ class AuthModelBackend {
     }
   }
 
-  // Forgot password - Generate reset code
+  // Forgot password - Updated to match API docs (/forgot-password)
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,
   }) async {
     try {
+      AppLogger.authEvent('Forgot password request', data: {'email': email});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.forgotPasswordEndpoint, data: requestData);
+
       final response = await _apiService.post(
         ApiConfig.forgotPasswordEndpoint,
-        {
-          'email': email.toLowerCase(),
-        },
+        requestData,
         requiresAuth: false,
       );
+
+      if (response['success']) {
+        AppLogger.authEvent('Forgot password successful', data: {'email': email});
+      } else {
+        AppLogger.authEvent('Forgot password failed', data: {'message': response['message']});
+      }
 
       return {
         'success': response['success'],
@@ -182,6 +244,7 @@ class AuthModelBackend {
         'resetCode': response['resetCode'], // For demo/testing
       };
     } catch (e) {
+      AppLogger.error('Forgot password error', tag: 'AUTH', error: e);
       return {
         'success': false,
         'message': 'Failed to process request: $e',
@@ -189,26 +252,39 @@ class AuthModelBackend {
     }
   }
 
-  // Verify reset code
+  // Verify reset code - Keep existing implementation (not in API docs)
   static Future<Map<String, dynamic>> verifyResetCode({
     required String email,
     required String code,
   }) async {
     try {
+      AppLogger.authEvent('Reset code verification attempt', data: {'email': email});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+        'code': code.trim(),
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.verifyResetCodeEndpoint, data: requestData);
+
       final response = await _apiService.post(
         ApiConfig.verifyResetCodeEndpoint,
-        {
-          'email': email.toLowerCase(),
-          'code': code,
-        },
+        requestData,
         requiresAuth: false,
       );
+
+      if (response['success']) {
+        AppLogger.authEvent('Reset code verification successful', data: {'email': email});
+      } else {
+        AppLogger.authEvent('Reset code verification failed', data: {'message': response['message']});
+      }
 
       return {
         'success': response['success'],
         'message': response['message'] ?? (response['success'] ? 'Code verified' : 'Invalid code'),
       };
     } catch (e) {
+      AppLogger.error('Reset code verification error', tag: 'AUTH', error: e);
       return {
         'success': false,
         'message': 'Verification failed: $e',
@@ -216,26 +292,42 @@ class AuthModelBackend {
     }
   }
 
-  // Reset password
+  // Reset password - Keep existing implementation (not in API docs)
   static Future<Map<String, dynamic>> resetPassword({
     required String email,
     required String newPassword,
   }) async {
     try {
+      AppLogger.authEvent('Password reset attempt', data: {'email': email});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+        'newPassword': newPassword,
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.resetPasswordEndpoint, data: {
+        'email': email.toLowerCase().trim(),
+        'newPassword': '[HIDDEN]'
+      });
+
       final response = await _apiService.post(
         ApiConfig.resetPasswordEndpoint,
-        {
-          'email': email.toLowerCase(),
-          'newPassword': newPassword,
-        },
+        requestData,
         requiresAuth: false,
       );
+
+      if (response['success']) {
+        AppLogger.authEvent('Password reset successful', data: {'email': email});
+      } else {
+        AppLogger.authEvent('Password reset failed', data: {'message': response['message']});
+      }
 
       return {
         'success': response['success'],
         'message': response['message'] ?? (response['success'] ? 'Password reset successful' : 'Reset failed'),
       };
     } catch (e) {
+      AppLogger.error('Password reset error', tag: 'AUTH', error: e);
       return {
         'success': false,
         'message': 'Reset failed: $e',
@@ -243,82 +335,130 @@ class AuthModelBackend {
     }
   }
 
-  // Logout
+  // =============================================
+  // SESSION MANAGEMENT
+  // =============================================
+
+  // Logout - Updated with better error handling
   static Future<void> logout() async {
     try {
-      await _apiService.post(ApiConfig.logoutEndpoint, {});
+      AppLogger.authEvent('Logout initiated');
+
+      // Try to call logout endpoint if it exists
+      try {
+        await _apiService.post(ApiConfig.logoutEndpoint, {});
+        AppLogger.authEvent('Logout API call successful');
+      } catch (e) {
+        AppLogger.warning('Logout API call failed, proceeding with local cleanup', tag: 'AUTH');
+      }
     } catch (e) {
-      print('Logout API call failed: $e');
+      AppLogger.error('Logout API error', tag: 'AUTH', error: e);
     } finally {
+      // Always clean up local data
       await _apiService.logout();
       await _clearCurrentUser();
       await _clearToken();
+      AppLogger.authEvent('Logout completed - local data cleared');
     }
   }
 
-  // Get current user
+  // Get current user - Enhanced with better error handling
   static Future<AuthModelBackend?> getCurrentUser() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userData = prefs.getString('currentUser');
 
-      if (userData == null) return null;
+      if (userData == null) {
+        AppLogger.debug('No cached user data found', tag: 'AUTH');
+        return null;
+      }
 
       final userJson = jsonDecode(userData);
-      return AuthModelBackend.fromJson(userJson);
+      final user = AuthModelBackend.fromJson(userJson);
+      AppLogger.debug('Retrieved cached user data', tag: 'AUTH');
+      return user;
     } catch (e) {
+      AppLogger.error('Get current user error', tag: 'AUTH', error: e);
+      // Clear corrupted data
+      await _clearCurrentUser();
       return null;
     }
   }
 
-  // Check if user is logged in
+  // Check if user is logged in - Enhanced validation
   static Future<bool> isLoggedIn() async {
-    final user = await getCurrentUser();
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    try {
+      final user = await getCurrentUser();
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
 
-    return user != null && token != null;
+      final loggedIn = user != null && token != null && token.isNotEmpty;
+      AppLogger.debug('Login status check: $loggedIn', tag: 'AUTH');
+      return loggedIn;
+    } catch (e) {
+      AppLogger.error('Login status check error', tag: 'AUTH', error: e);
+      return false;
+    }
   }
+
+  // =============================================
+  // PRIVATE HELPER METHODS
+  // =============================================
 
   // Save token
   static Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      AppLogger.debug('Auth token saved', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Failed to save auth token', tag: 'AUTH', error: e);
+    }
   }
 
   // Clear token
   static Future<void> _clearToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      AppLogger.debug('Auth token cleared', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Failed to clear auth token', tag: 'AUTH', error: e);
+    }
   }
 
   // Save current user data locally
   static Future<void> _saveCurrentUser(AuthModelBackend user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('currentUser', jsonEncode(user.toJson()));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currentUser', jsonEncode(user.toJson()));
+      AppLogger.debug('User data cached', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Failed to save user data', tag: 'AUTH', error: e);
+    }
   }
 
   // Clear current user data
   static Future<void> _clearCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('currentUser');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('currentUser');
+      AppLogger.debug('User data cleared', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Failed to clear user data', tag: 'AUTH', error: e);
+    }
   }
 
-  // Refresh user data from server
-  static Future<AuthModelBackend?> refreshUserData() async {
-    try {
-      final response = await _apiService.get(ApiConfig.getCurrentUserEndpoint);
+  // =============================================
+  // REMOVED/DEPRECATED METHODS
+  // =============================================
 
-      if (response['success']) {
-        final user = AuthModelBackend.fromJson(response['data']['user']);
-        await _saveCurrentUser(user);
-        return user;
-      }
+  // NOTE: refreshUserData() method removed as getCurrentUserEndpoint
+  // is not mentioned in API docs. If needed, it can be re-implemented
+  // when the API supports user profile fetching.
 
-      return null;
-    } catch (e) {
-      print('Failed to refresh user data: $e');
-      return null;
-    }
+  @override
+  String toString() {
+    return 'AuthModelBackend{id: $id, email: $email, fullName: $fullName}';
   }
 }
