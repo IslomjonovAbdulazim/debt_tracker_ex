@@ -5,7 +5,7 @@ import 'login_page.dart';
 class VerifyEmailPage extends StatefulWidget {
   final String email;
   final bool isFromRegistration;
-  final String? verificationCode; // For demo purposes
+  final String? verificationCode;
 
   const VerifyEmailPage({
     super.key,
@@ -44,9 +44,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     final code = _getCompleteCode();
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the complete verification code'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('Please enter the complete verification code'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
@@ -64,13 +64,12 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email verified successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Email verified successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
-        // Navigate to login
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -80,7 +79,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Verification failed'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -88,7 +87,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -102,12 +101,11 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() => _isLoading = true);
 
     try {
-      // For demo, just generate a new code
       final result = await AuthModelBackend.register(
         email: widget.email,
-        password: 'temp', // This won't actually re-register
+        password: 'temp',
         fullName: 'temp',
-        phoneNumber: '+998000000000', // Add this line
+        phoneNumber: '+998000000000',
       );
 
       if (!mounted) return;
@@ -117,15 +115,15 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           SnackBar(
             content: Text('New Demo Code: ${result['verificationCode']}'),
             duration: const Duration(seconds: 10),
-            backgroundColor: Colors.blue,
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to resend code'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Failed to resend code'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -137,13 +135,13 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text('Verify Email'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
       ),
       body: SafeArea(
         child: Center(
@@ -159,17 +157,16 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                   Icon(
                     Icons.mark_email_unread,
                     size: 80,
-                    color: Colors.blue[600],
+                    color: theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
 
                   // Title
                   Text(
                     'Verify Your Email',
-                    style: TextStyle(
-                      fontSize: 24,
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: theme.colorScheme.onBackground,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -178,18 +175,16 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                   // Subtitle
                   Text(
                     'Enter the 6-digit code sent to',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     widget.email,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.blue[600],
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
@@ -215,9 +210,12 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                             counterText: '',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outline,
+                              ),
                             ),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: theme.colorScheme.surface,
                           ),
                           onChanged: (value) {
                             if (value.isNotEmpty && index < 5) {
@@ -238,28 +236,20 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleVerify,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 2,
-                      ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.onPrimary,
+                          ),
                         ),
                       )
-                          : const Text(
+                          : Text(
                         'Verify Email',
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -273,14 +263,14 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     children: [
                       Text(
                         'Didn\'t receive the code? ',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                       ),
                       GestureDetector(
                         onTap: _isLoading ? null : _resendCode,
                         child: Text(
                           'Resend',
                           style: TextStyle(
-                            color: Colors.blue[600],
+                            color: theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -293,26 +283,27 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue[50],
+                        color: theme.colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                        ),
                       ),
                       child: Column(
                         children: [
                           Text(
                             'Demo Verification Code',
-                            style: TextStyle(
+                            style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue[800],
+                              color: theme.colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             widget.verificationCode!,
-                            style: TextStyle(
-                              fontSize: 20,
+                            style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue[700],
+                              color: theme.colorScheme.primary,
                               letterSpacing: 2,
                             ),
                           ),

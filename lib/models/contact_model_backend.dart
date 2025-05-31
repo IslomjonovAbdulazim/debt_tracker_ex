@@ -82,7 +82,7 @@ class ContactModelBackend {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'full_name': fullName,  // Changed from fullName to full_name
+      'fullname': fullName,  // Changed from fullName to full_name
       'phone_number': phoneNumber,  // Changed from phoneNumber to phone_number
       'email': email,
       'created_at': createdDate.toIso8601String(),  // Changed from createdDate to created_at
@@ -124,7 +124,7 @@ class ContactModelBackend {
       final response = await _apiService.post(
         ApiConfig.createContactEndpoint,
         {
-          'full_name': contact.fullName.trim(),  // Send as full_name
+          'fullname': contact.fullName.trim(),  // Send as full_name
           'phone_number': contact.phoneNumber.trim(),  // Send as phone_number
           if (contact.email != null) 'email': contact.email!.trim(),
         },
@@ -222,7 +222,7 @@ class ContactModelBackend {
       final response = await _apiService.put(
         '${ApiConfig.updateContactEndpoint}/${updatedContact.id}',
         {
-          'full_name': updatedContact.fullName.trim(),
+          'fullname': updatedContact.fullName.trim(),
           'phone_number': updatedContact.phoneNumber.trim(),
           if (updatedContact.email != null) 'email': updatedContact.email!.trim(),
         },

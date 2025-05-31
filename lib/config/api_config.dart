@@ -2,7 +2,7 @@ class ApiConfig {
   // TODO: Change this to your real backend URL when integrating
   static bool get isProduction => baseUrl.contains('api.debttracker.com');
   static bool get isDevelopment => baseUrl.contains('localhost');
-  static const String baseUrl = 'https://api.debttracker.com/v1';
+  static const String baseUrl = 'http://10.10.3.132:8000/';
   // static const String baseUrl = 'http://localhost:8080/v1';
 
   // Logging
@@ -20,7 +20,7 @@ class ApiConfig {
 
   // Contact endpoints
   static const String contactsEndpoint = '/contacts';
-  static const String createContactEndpoint = '/contacts';
+  static const String createContactEndpoint = '/add/contacts';
   static const String updateContactEndpoint = '/contacts'; // + /{id}
   static const String deleteContactEndpoint = '/contacts'; // + /{id}
   static const String searchContactsEndpoint = '/contacts'; // Use ?search= query param
@@ -56,6 +56,6 @@ class ApiConfig {
 
   static Map<String, String> getAuthHeaders(String token) => {
     ...defaultHeaders,
-    'Authorization': 'Bearer $token',
+    'Authenticate': '$token',
   };
 }

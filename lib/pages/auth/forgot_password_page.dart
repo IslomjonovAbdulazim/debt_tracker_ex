@@ -35,19 +35,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reset code sent! Check your email.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Reset code sent! Check your email.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
-        // Navigate to reset password page
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => ResetPasswordPage(
               email: _emailController.text.trim(),
-              resetCode: result['resetCode'], // For demo purposes
+              resetCode: result['resetCode'],
             ),
           ),
         );
@@ -55,7 +54,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Failed to send reset code'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -63,7 +62,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -75,13 +74,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text('Forgot Password'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
       ),
       body: SafeArea(
         child: Center(
@@ -97,17 +96,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   Icon(
                     Icons.lock_reset,
                     size: 80,
-                    color: Colors.blue[600],
+                    color: theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
 
                   // Title
                   Text(
                     'Reset Password',
-                    style: TextStyle(
-                      fontSize: 24,
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: theme.colorScheme.onBackground,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -116,9 +114,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   // Subtitle
                   Text(
                     'Enter your email address and we\'ll send you a code to reset your password',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -136,12 +133,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter your email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -160,31 +155,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleForgotPassword,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 2,
-                      ),
                       child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text(
-                              'Send Reset Code',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                          ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.onPrimary,
+                          ),
+                        ),
+                      )
+                          : Text(
+                        'Send Reset Code',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -192,9 +179,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   // Back to Login
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text(
+                    child: Text(
                       'Back to Login',
-                      style: TextStyle(fontSize: 16),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ],

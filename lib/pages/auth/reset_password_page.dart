@@ -4,7 +4,7 @@ import 'login_page.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;
-  final String? resetCode; // For demo purposes
+  final String? resetCode;
 
   const ResetPasswordPage({
     super.key,
@@ -32,14 +32,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   void initState() {
     super.initState();
-    // Show demo code if provided
     if (widget.resetCode != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Demo Reset Code: ${widget.resetCode}'),
             duration: const Duration(seconds: 10),
-            backgroundColor: Colors.blue,
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       });
@@ -64,9 +63,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final code = _getCompleteCode();
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the complete reset code'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('Please enter the complete reset code'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
@@ -87,16 +86,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           _codeVerified = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Code verified! Now create a new password.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Code verified! Now create a new password.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Invalid code'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -104,7 +103,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -129,13 +128,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset successful! Please login.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Password reset successful! Please login.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
-        // Navigate to login
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -145,7 +143,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Failed to reset password'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -153,7 +151,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -165,13 +163,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text('Reset Password'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
       ),
       body: SafeArea(
         child: Center(
@@ -187,17 +185,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   Icon(
                     _codeVerified ? Icons.lock_open : Icons.lock_clock,
                     size: 80,
-                    color: Colors.blue[600],
+                    color: theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
 
                   // Title
                   Text(
                     _codeVerified ? 'Create New Password' : 'Enter Reset Code',
-                    style: TextStyle(
-                      fontSize: 24,
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: theme.colorScheme.onBackground,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -208,9 +205,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     _codeVerified
                         ? 'Choose a strong password for your account'
                         : 'Enter the 6-digit code sent to ${widget.email}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -228,17 +224,19 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             keyboardType: TextInputType.number,
                             maxLength: 1,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                             decoration: InputDecoration(
                               counterText: '',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: theme.colorScheme.outline,
+                                ),
                               ),
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: theme.colorScheme.surface,
                             ),
                             onChanged: (value) {
                               if (value.isNotEmpty && index < 5) {
@@ -259,28 +257,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleVerifyCode,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          elevation: 2,
-                        ),
                         child: _isLoading
-                            ? const SizedBox(
+                            ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white),
+                              theme.colorScheme.onPrimary,
+                            ),
                           ),
                         )
-                            : const Text(
+                            : Text(
                           'Verify Code',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -294,12 +284,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       decoration: InputDecoration(
                         labelText: 'New Password',
                         hintText: 'Enter new password',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: Icon(
+                          Icons.lock_outline,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureNewPassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           onPressed: () {
                             setState(() {
@@ -307,11 +301,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             });
                           },
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -332,12 +321,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       decoration: InputDecoration(
                         labelText: 'Confirm Password',
                         hintText: 'Re-enter new password',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: Icon(
+                          Icons.lock_outline,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           onPressed: () {
                             setState(() {
@@ -345,11 +338,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             });
                           },
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -368,28 +356,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleResetPassword,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          elevation: 2,
-                        ),
                         child: _isLoading
-                            ? const SizedBox(
+                            ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white),
+                              theme.colorScheme.onPrimary,
+                            ),
                           ),
                         )
-                            : const Text(
+                            : Text(
                           'Reset Password',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -409,9 +389,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             (route) => false,
                       );
                     },
-                    child: const Text(
+                    child: Text(
                       'Back to Login',
-                      style: TextStyle(fontSize: 16),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
 
@@ -420,26 +402,27 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue[50],
+                        color: theme.colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                        ),
                       ),
                       child: Column(
                         children: [
                           Text(
                             'Demo Reset Code',
-                            style: TextStyle(
+                            style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue[800],
+                              color: theme.colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             widget.resetCode!,
-                            style: TextStyle(
-                              fontSize: 20,
+                            style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue[700],
+                              color: theme.colorScheme.primary,
                               letterSpacing: 2,
                             ),
                           ),

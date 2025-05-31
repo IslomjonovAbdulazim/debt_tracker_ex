@@ -32,6 +32,7 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -45,37 +46,34 @@ class _RegisterPageState extends State<RegisterPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(), // ADD THIS LINE
+        phoneNumber: _phoneController.text.trim(),
       );
 
       if (!mounted) return;
 
       if (result['success']) {
-        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Please verify your email.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Registration successful! Please verify your email.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
-        // Navigate to verification page
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => VerifyEmailPage(
               email: _emailController.text.trim(),
               isFromRegistration: true,
-              verificationCode: result['verificationCode'], // For testing
+              verificationCode: result['verificationCode'],
             ),
           ),
         );
       } else {
-        // Show error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Registration failed'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -83,7 +81,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -95,8 +93,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -111,17 +111,16 @@ class _RegisterPageState extends State<RegisterPage> {
                   Icon(
                     Icons.person_add,
                     size: 80,
-                    color: Colors.blue[600],
+                    color: theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
 
                   // Title
                   Text(
                     'Create Account',
-                    style: TextStyle(
-                      fontSize: 28,
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: theme.colorScheme.onBackground,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -129,9 +128,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
                   Text(
                     'Register to start tracking debts',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -148,12 +146,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       hintText: 'Enter your full name',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      prefixIcon: Icon(
+                        Icons.person_outline,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -178,12 +174,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter your email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -196,23 +190,23 @@ class _RegisterPageState extends State<RegisterPage> {
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // Phone Number Field
                   TextFormField(
-                    controller: _phoneController, // Add this controller to your state
+                    controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
-                    inputFormatters: [phoneMaskFormatter], // Add this formatter
+                    inputFormatters: [phoneMaskFormatter],
                     onTapOutside: (event) {
                       FocusScope.of(context).unfocus();
                     },
                     decoration: InputDecoration(
                       labelText: 'Phone Number',
                       hintText: '+998 90 123 45 67',
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      prefixIcon: Icon(
+                        Icons.phone_outlined,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -238,12 +232,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     decoration: InputDecoration(
                       labelText: 'Password',
                       hintText: 'Create a password',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      prefixIcon: Icon(
+                        Icons.lock_outline,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         onPressed: () {
                           setState(() {
@@ -251,11 +249,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           });
                         },
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -281,12 +274,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     decoration: InputDecoration(
                       labelText: 'Confirm Password',
                       hintText: 'Re-enter your password',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      prefixIcon: Icon(
+                        Icons.lock_outline,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureConfirmPassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         onPressed: () {
                           setState(() {
@@ -294,11 +291,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           });
                         },
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -317,28 +309,20 @@ class _RegisterPageState extends State<RegisterPage> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleRegister,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 2,
-                      ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.onPrimary,
+                          ),
                         ),
                       )
-                          : const Text(
+                          : Text(
                         'Register',
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -352,7 +336,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -366,7 +350,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         child: Text(
                           'Login',
                           style: TextStyle(
-                            color: Colors.blue[600],
+                            color: theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

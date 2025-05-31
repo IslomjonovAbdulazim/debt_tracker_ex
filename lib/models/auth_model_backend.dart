@@ -39,7 +39,7 @@ class AuthModelBackend {
     return AuthModelBackend(
       userId: json['userId'] ?? json['id']?.toString() ?? '',
       email: json['email'] ?? '',
-      fullName: json['full_name'] ?? '',  // API uses snake_case
+      fullName: json['fullname'] ?? '',  // API uses snake_case
       phoneNumber: json['phone_number'] ?? '',  // API uses snake_case
       isVerified: json['is_verified'] ?? false,  // API uses snake_case
       createdDate: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
@@ -59,7 +59,7 @@ class AuthModelBackend {
         {
           'email': email.toLowerCase(),
           'password': password,
-          'full_name': fullName,  // Send as full_name
+          'fullname': fullName,  // Send as full_name
           'phone_number': phoneNumber,  // Send as phone_number
         },
         requiresAuth: false,
