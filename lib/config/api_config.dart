@@ -1,7 +1,11 @@
 class ApiConfig {
   // TODO: Change this to your real backend URL when integrating
+  static bool get isProduction => baseUrl.contains('api.debttracker.com');
+  static bool get isDevelopment => baseUrl.contains('localhost');
   static const String baseUrl = 'http://localhost:8080/api';
   // static const String baseUrl = 'https://your-backend-domain.com/api';
+  // Logging
+  static bool get enableApiLogging => isDevelopment;
 
   // Auth endpoints
   static const String loginEndpoint = '/auth/login';

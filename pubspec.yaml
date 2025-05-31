@@ -11,14 +11,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   cupertino_icons: ^1.0.8
   get: ^4.7.2
   device_preview: ^1.2.0
   shared_preferences: ^2.5.3
   mask_text_input_formatter: ^2.9.0
-  http:
-  intl:
+  http: ^1.4.0  # Updated version
+  intl: ^0.19.0  # Updated version
+
+  # Optional but recommended
+  connectivity_plus: ^6.1.4  # Check internet connection
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:

@@ -123,9 +123,9 @@ class _ContactsPageState extends State<ContactsPage> {
                 createdDate: DateTime.now(),
               );
 
-              final success = await ContactModelBackend.createContact(newContact);
+              final result = await ContactModelBackend.createContact(newContact);
 
-              if (success) {
+              if (result['success'] == true) {
                 Navigator.pop(context);
                 _loadContacts();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -180,8 +180,8 @@ class _ContactsPageState extends State<ContactsPage> {
       );
 
       if (confirmed == true) {
-        final success = await ContactModelBackend.deleteContact(contact.id);
-        if (success) {
+        final result = await ContactModelBackend.deleteContact(contact.id);
+        if (result['success'] == true) {
           _loadContacts();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Contact deleted successfully!')),
