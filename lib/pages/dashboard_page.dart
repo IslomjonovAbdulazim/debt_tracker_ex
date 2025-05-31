@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/contact_model_backend.dart';
 import '../models/debt_record_model_backend.dart';
 import '../models/auth_model_backend.dart';
+import '../config/app_colors.dart';
+import '../config/app_theme.dart';
 import 'contacts_page.dart';
 import 'debts_overview_page.dart';
 import 'payment_history_page.dart';
@@ -38,7 +40,6 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Refresh data when app comes to foreground
     if (state == AppLifecycleState.resumed) {
       _loadDashboardData();
     }
@@ -53,14 +54,12 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     });
 
     try {
-      // Check if user is still authenticated
       final isLoggedIn = await AuthModelBackend.isLoggedIn();
       if (!isLoggedIn) {
         _navigateToLogin();
         return;
       }
 
-      // Load data in parallel for better performance
       final results = await Future.wait([
         DebtRecordModelBackend.getTotalAmountIOwe(),
         DebtRecordModelBackend.getTotalAmountTheyOweMe(),
@@ -95,7 +94,6 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   String _getErrorMessage(dynamic error) {
     final errorStr = error.toString().toLowerCase();
-
     if (errorStr.contains('socketexception') || errorStr.contains('network')) {
       return 'No internet connection. Please check your network.';
     }
@@ -105,7 +103,6 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
       return 'Session expired. Please login again.';
     }
-
     return 'Failed to load data. Please try again.';
   }
 
@@ -161,9 +158,12 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
   }
 
   void _showContactSelectionSheet(List<ContactModelBackend> contacts, bool isMyDebt) {
+    final financialColors = DebtThemeUtils.getFinancialColors(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -174,28 +174,24 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
         expand: false,
         builder: (context, scrollController) => Column(
           children: [
-            // Handle
             Container(
               width: 40,
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: AppColors.grey300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // Title
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
                 isMyDebt ? 'I Owe Money To...' : 'Someone Owes Me...',
-                style: const TextStyle(
-                  fontSize: 18,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            // Contacts list
             Expanded(
               child: ListView.builder(
                 controller: scrollController,
@@ -207,11 +203,15 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: isMyDebt ? Colors.red[100] : Colors.green[100],
+                        backgroundColor: isMyDebt
+                            ? financialColors.debtBackground
+                            : financialColors.creditBackground,
                         child: Text(
                           contact.fullName.isNotEmpty ? contact.fullName[0].toUpperCase() : '?',
                           style: TextStyle(
-                            color: isMyDebt ? Colors.red[700] : Colors.green[700],
+                            color: isMyDebt
+                                ? financialColors.debt
+                                : financialColors.credit,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -223,7 +223,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                       subtitle: Text(contact.phoneNumber),
                       trailing: Icon(
                         Icons.arrow_forward_ios,
-                        color: Colors.grey[400],
+                        color: AppColors.grey400,
                         size: 16,
                       ),
                       onTap: () {
@@ -235,7 +235,6 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                 },
               ),
             ),
-            // Add new contact button
             Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
@@ -280,7 +279,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.error,
         action: SnackBarAction(
           label: 'Retry',
           textColor: Colors.white,
@@ -303,7 +302,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Logout'),
           ),
         ],
@@ -322,17 +321,16 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text(
           'Debt Tracker',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -343,13 +341,13 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
               if (value == 'logout') _logout();
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Logout'),
+                    Icon(Icons.logout, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    const Text('Logout'),
                   ],
                 ),
               ),
@@ -363,13 +361,16 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading dashboard...'),
+            CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Loading dashboard...',
+              style: TextStyle(color: AppColors.grey600),
+            ),
           ],
         ),
       );
@@ -413,24 +414,21 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
             Icon(
               Icons.error_outline,
               size: 80,
-              color: Colors.red[400],
+              color: AppColors.error,
             ),
             const SizedBox(height: 20),
             Text(
               'Oops! Something went wrong',
-              style: TextStyle(
-                fontSize: 20,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               errorMessage!,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.grey600,
               ),
               textAlign: TextAlign.center,
             ),
@@ -453,15 +451,11 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Colors.blue, Colors.blueAccent],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(15),
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: AppColors.primary.withOpacity(0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -498,7 +492,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           child: _buildMoneyCardWithAction(
             'I Owe',
             totalIOwe,
-            Colors.red[400]!,
+            AppColors.debt,
             Icons.arrow_upward,
             0,
           ),
@@ -508,7 +502,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           child: _buildMoneyCardWithAction(
             'They Owe',
             totalTheyOwe,
-            Colors.green[400]!,
+            AppColors.credit,
             Icons.arrow_downward,
             1,
           ),
@@ -524,7 +518,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           child: _buildStatusCard(
             'Active',
             activeDebts.toString(),
-            Colors.blue[400]!,
+            AppColors.info,
             Icons.receipt_long,
             null,
           ),
@@ -534,7 +528,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           child: _buildStatusCard(
             'Overdue',
             overdueCount.toString(),
-            Colors.orange[400]!,
+            AppColors.warning,
             Icons.warning_amber,
             2,
           ),
@@ -544,32 +538,22 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
   }
 
   Widget _buildQuickAddSection() {
+    final financialColors = DebtThemeUtils.getFinancialColors(context);
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: DebtThemeUtils.getFinancialCardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.add_circle_outline, color: Colors.blue[600]),
+              Icon(Icons.add_circle_outline, color: AppColors.primary),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Quick Add Debt',
-                style: TextStyle(
-                  fontSize: 18,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
                 ),
               ),
             ],
@@ -577,9 +561,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           const SizedBox(height: 8),
           Text(
             'Quickly record a new debt without navigating through contacts',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.grey600,
             ),
           ),
           const SizedBox(height: 16),
@@ -591,11 +574,11 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                   icon: const Icon(Icons.add),
                   label: const Text('I Owe Money'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[400],
+                    backgroundColor: financialColors.debt,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -607,11 +590,11 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                   icon: const Icon(Icons.add),
                   label: const Text('They Owe Me'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[400],
+                    backgroundColor: financialColors.credit,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -627,12 +610,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'More Options',
-          style: TextStyle(
-            fontSize: 18,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 16),
@@ -640,7 +621,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           'Manage Contacts',
           'Add, edit, or view your contacts',
           Icons.people_outline,
-          Colors.purple[400]!,
+          AppColors.secondary,
           _navigateToContacts,
         ),
         const SizedBox(height: 12),
@@ -648,7 +629,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           'View All Debts',
           'See all active and completed debts',
           Icons.receipt_long_outlined,
-          Colors.indigo[400]!,
+          AppColors.info,
               () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const DebtsPage()),
@@ -659,7 +640,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           'Payment History',
           'Review all payment records',
           Icons.history,
-          Colors.teal[400]!,
+          AppColors.success,
               () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const HistoryPage()),
@@ -679,16 +660,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       ).then((_) => _loadDashboardData()),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+        decoration: DebtThemeUtils.getFinancialCardDecoration(
+          context,
+          borderRadius: 12,
+        ).copyWith(
           border: Border.all(
             color: color.withOpacity(0.2),
             width: 1,
@@ -702,9 +677,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.grey600,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -713,10 +687,9 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
             ),
             const SizedBox(height: 8),
             Text(
-              '\${amount.toStringAsFixed(2)}',
-              style: TextStyle(
+              '\$${amount.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: color,
-                fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -729,9 +702,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
               ),
               child: Text(
                 'Tap to view',
-                style: TextStyle(
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: color,
-                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -752,16 +724,10 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       ).then((_) => _loadDashboardData()) : null,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+        decoration: DebtThemeUtils.getFinancialCardDecoration(
+          context,
+          borderRadius: 12,
+        ).copyWith(
           border: tabIndex != null ? Border.all(
             color: color.withOpacity(0.2),
             width: 1,
@@ -775,9 +741,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.grey600,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -787,9 +752,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
             const SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: color,
-                fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -803,9 +767,8 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                 ),
                 child: Text(
                   'Tap to view',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: color,
-                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -843,24 +806,21 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.grey600,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
+              Icon(Icons.arrow_forward_ios, color: AppColors.grey400, size: 16),
             ],
           ),
         ),
