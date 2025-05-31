@@ -27,7 +27,7 @@ class AuthModelBackend {
     return {
       'userId': userId,
       'email': email,
-      'full_name': fullName,  // Changed to snake_case
+      'fullname': fullName,  // Changed to snake_case
       'phone_number': phoneNumber,  // Added phone number
       'is_verified': isVerified,  // Changed to snake_case
       'created_at': createdDate.toIso8601String(),  // Changed to snake_case
@@ -146,7 +146,7 @@ class AuthModelBackend {
         ApiConfig.verifyEmailEndpoint,
         {
           'email': email.toLowerCase(),
-          'code': code,
+          'otp': code,
         },
         requiresAuth: false,
       );

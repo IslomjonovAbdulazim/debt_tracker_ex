@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import '../config/app_logger.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -11,32 +12,34 @@ class ApiService {
 
   // 🔐 Token management
   Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  Future<void> _saveAuthToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
-  }
-
-  Future<void> _removeAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-  }
-
-  // 📝 Logging helper
-  void _logRequest(String method, String url, Map<String, dynamic>? data) {
-    if (ApiConfig.enableApiLogging) {
-      print('🌐 API $method: $url');
-      if (data != null) print('📤 Data: ${jsonEncode(data)}');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      AppLogger.debug('Retrieved auth token: ${token != null ? 'EXISTS' : 'NULL'}', tag: 'AUTH');
+      return token;
+    } catch (e) {
+      AppLogger.error('Failed to get auth token', tag: 'AUTH', error: e);
+      return null;
     }
   }
 
-  void _logResponse(String method, String url, int statusCode, Map<String, dynamic> response) {
-    if (ApiConfig.enableApiLogging) {
-      print('📨 API $method Response: $statusCode for $url');
-      print('📥 Data: ${jsonEncode(response)}');
+  Future<void> _saveAuthToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      AppLogger.info('Auth token saved successfully', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Failed to save auth token', tag: 'AUTH', error: e);
+    }
+  }
+
+  Future<void> _removeAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      AppLogger.info('Auth token removed successfully', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Failed to remove auth token', tag: 'AUTH', error: e);
     }
   }
 
@@ -45,13 +48,25 @@ class ApiService {
     int attempts = 0;
     while (attempts < maxRetries) {
       try {
-        return await request();
+        final stopwatch = Stopwatch()..start();
+        final response = await request();
+        stopwatch.stop();
+
+        AppLogger.performance('HTTP Request', stopwatch.elapsed);
+        return response;
       } catch (e) {
         attempts++;
-        if (attempts >= maxRetries || e is! SocketException) rethrow;
+        AppLogger.warning('Request attempt $attempts failed: $e', tag: 'API');
+
+        if (attempts >= maxRetries || e is! SocketException) {
+          AppLogger.error('Max retries exceeded or non-recoverable error', tag: 'API', error: e);
+          rethrow;
+        }
 
         // Wait before retry (exponential backoff)
-        await Future.delayed(Duration(seconds: attempts * 2));
+        final delay = Duration(seconds: attempts * 2);
+        AppLogger.info('Retrying in ${delay.inSeconds} seconds...', tag: 'API');
+        await Future.delayed(delay);
       }
     }
     throw Exception('Max retries exceeded');
@@ -67,19 +82,22 @@ class ApiService {
         final token = await _getAuthToken();
         if (token != null) {
           headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          AppLogger.warning('No auth token available for authenticated request', tag: 'API');
         }
       }
 
-      _logRequest('GET', url.toString(), null);
+      AppLogger.apiRequest('GET', url.toString());
 
       final response = await _makeRequest(() =>
           http.get(url, headers: headers).timeout(ApiConfig.requestTimeout)
       );
 
       final result = _handleResponse(response);
-      _logResponse('GET', url.toString(), response.statusCode, result);
+      AppLogger.apiResponse('GET', url.toString(), response.statusCode, response: result);
       return result;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.apiError('GET', endpoint, e, stackTrace: stackTrace);
       return _handleError(e);
     }
   }
@@ -98,10 +116,12 @@ class ApiService {
         final token = await _getAuthToken();
         if (token != null) {
           headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          AppLogger.warning('No auth token available for authenticated request', tag: 'API');
         }
       }
 
-      _logRequest('POST', url.toString(), data);
+      AppLogger.apiRequest('POST', url.toString(), data: data);
 
       final response = await _makeRequest(() =>
           http.post(
@@ -112,9 +132,10 @@ class ApiService {
       );
 
       final result = _handleResponse(response);
-      _logResponse('POST', url.toString(), response.statusCode, result);
+      AppLogger.apiResponse('POST', url.toString(), response.statusCode, response: result);
       return result;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.apiError('POST', endpoint, e, stackTrace: stackTrace);
       return _handleError(e);
     }
   }
@@ -133,10 +154,12 @@ class ApiService {
         final token = await _getAuthToken();
         if (token != null) {
           headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          AppLogger.warning('No auth token available for authenticated request', tag: 'API');
         }
       }
 
-      _logRequest('PUT', url.toString(), data);
+      AppLogger.apiRequest('PUT', url.toString(), data: data);
 
       final response = await _makeRequest(() =>
           http.put(
@@ -147,9 +170,10 @@ class ApiService {
       );
 
       final result = _handleResponse(response);
-      _logResponse('PUT', url.toString(), response.statusCode, result);
+      AppLogger.apiResponse('PUT', url.toString(), response.statusCode, response: result);
       return result;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.apiError('PUT', endpoint, e, stackTrace: stackTrace);
       return _handleError(e);
     }
   }
@@ -164,19 +188,22 @@ class ApiService {
         final token = await _getAuthToken();
         if (token != null) {
           headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          AppLogger.warning('No auth token available for authenticated request', tag: 'API');
         }
       }
 
-      _logRequest('DELETE', url.toString(), null);
+      AppLogger.apiRequest('DELETE', url.toString());
 
       final response = await _makeRequest(() =>
           http.delete(url, headers: headers).timeout(ApiConfig.requestTimeout)
       );
 
       final result = _handleResponse(response);
-      _logResponse('DELETE', url.toString(), response.statusCode, result);
+      AppLogger.apiResponse('DELETE', url.toString(), response.statusCode, response: result);
       return result;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.apiError('DELETE', endpoint, e, stackTrace: stackTrace);
       return _handleError(e);
     }
   }
@@ -187,7 +214,9 @@ class ApiService {
 
     try {
       responseData = jsonDecode(response.body);
+      AppLogger.debug('Response body parsed successfully', tag: 'API');
     } catch (e) {
+      AppLogger.error('Failed to parse response body', tag: 'API', error: e);
       return {
         'success': false,
         'message': 'Invalid response format from server',
@@ -199,18 +228,23 @@ class ApiService {
     if (responseData.containsKey('token') ||
         (responseData.containsKey('data') && responseData['data']?.containsKey('token'))) {
       final token = responseData['token'] ?? responseData['data']['token'];
-      if (token != null) _saveAuthToken(token);
+      if (token != null) {
+        AppLogger.info('New token received in response', tag: 'AUTH');
+        _saveAuthToken(token);
+      }
     }
 
     // Handle different status codes
     switch (response.statusCode) {
       case 200:
       case 201:
+        AppLogger.info('Successful response: ${response.statusCode}', tag: 'API');
         return {
           'success': true,
           ...responseData,
         };
       case 401:
+        AppLogger.warning('Unauthorized response - removing token', tag: 'API');
         _removeAuthToken(); // Remove invalid token
         return {
           'success': false,
@@ -219,6 +253,7 @@ class ApiService {
           'needsLogin': true,
         };
       case 422:
+        AppLogger.warning('Validation error response', tag: 'API');
         return {
           'success': false,
           'message': responseData['message'] ?? 'Validation error',
@@ -226,18 +261,21 @@ class ApiService {
           'statusCode': response.statusCode,
         };
       case 429:
+        AppLogger.warning('Rate limit exceeded', tag: 'API');
         return {
           'success': false,
           'message': 'Too many requests. Please try again later.',
           'statusCode': response.statusCode,
         };
       case 500:
+        AppLogger.error('Server error response', tag: 'API');
         return {
           'success': false,
           'message': 'Server error. Please try again later.',
           'statusCode': response.statusCode,
         };
       default:
+        AppLogger.warning('Unhandled status code: ${response.statusCode}', tag: 'API');
         return {
           'success': false,
           'message': responseData['message'] ?? 'Request failed',
@@ -248,9 +286,10 @@ class ApiService {
 
   // ❌ Error handler
   Map<String, dynamic> _handleError(dynamic error) {
-    print('❌ API Error: $error');
+    AppLogger.error('API Error occurred', tag: 'API', error: error);
 
     if (error is SocketException) {
+      AppLogger.network('No internet connection');
       return {
         'success': false,
         'message': 'No internet connection. Please check your network.',
@@ -259,6 +298,7 @@ class ApiService {
     }
 
     if (error is HttpException) {
+      AppLogger.network('HTTP exception occurred');
       return {
         'success': false,
         'message': 'Network error occurred. Please try again.',
@@ -267,6 +307,7 @@ class ApiService {
     }
 
     if (error.toString().contains('TimeoutException')) {
+      AppLogger.warning('Request timeout', tag: 'API');
       return {
         'success': false,
         'message': 'Request timed out. Please try again.',
@@ -282,15 +323,21 @@ class ApiService {
 
   // 🚪 Logout helper
   Future<void> logout() async {
+    AppLogger.authEvent('User logout initiated');
     await _removeAuthToken();
+    AppLogger.authEvent('User logout completed');
   }
 
   // 🔍 Connection test
   Future<bool> testConnection() async {
     try {
+      AppLogger.info('Testing API connection...', tag: 'API');
       final response = await get('/health', requiresAuth: false);
-      return response['success'] == true;
+      final isConnected = response['success'] == true;
+      AppLogger.network(isConnected ? 'API connection successful' : 'API connection failed');
+      return isConnected;
     } catch (e) {
+      AppLogger.network('API connection test failed');
       return false;
     }
   }

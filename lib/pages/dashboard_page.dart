@@ -1,8 +1,11 @@
+import 'package:debt_tracker_ex/config/app_logger.dart';
 import 'package:flutter/material.dart';
 import '../models/contact_model_backend.dart';
 import '../models/debt_record_model_backend.dart';
 import '../models/auth_model_backend.dart';
 import '../config/app_theme.dart';
+import '../services/api_service.dart';
+import '../config/api_config.dart';
 import 'contacts_page.dart';
 import 'debts_overview_page.dart';
 import 'payment_history_page.dart';
@@ -17,10 +20,13 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserver {
+  final ApiService _apiService = ApiService();
+
   double totalIOwe = 0.0;
   double totalTheyOwe = 0.0;
   int activeDebts = 0;
   int overdueCount = 0;
+  int totalContacts = 0;
   bool isLoading = true;
   String? errorMessage;
 
@@ -29,6 +35,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
+    _loadDebtsSummary();
   }
 
   @override
@@ -59,6 +66,65 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
         return;
       }
 
+      // Load dashboard data concurrently
+      final results = await Future.wait([
+        _loadDebtsSummary(),
+        _loadContactsCount(),
+      ]);
+
+      final summarySuccess = results[0] as bool;
+      final contactsSuccess = results[1] as bool;
+
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          if (!summarySuccess && !contactsSuccess) {
+            errorMessage = 'Failed to load dashboard data';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = _getErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  Future<bool> _loadDebtsSummary() async {
+    final summaryResult = await DebtRecordModelBackend.getDebtsSummary();
+    print('\n\n\n\n\n\n----------------');
+    AppLogger.info(summaryResult.toString());
+    setState(() {
+      totalIOwe = summaryResult['total_i_owe'] ?? 0.0;
+      totalTheyOwe = summaryResult['total_they_owe'] ?? 0.0;
+      activeDebts = summaryResult['active_debts_count'] ?? 0;
+      overdueCount = summaryResult['overdue_debts_count'] ?? 0;
+    });
+    try {
+      // Use the new summary method from the updated model
+
+
+      if (summaryResult['success'] == true) {
+        if (mounted) {
+
+        }
+        return true;
+      } else {
+        // Fallback: try to get individual debt records
+        return await _loadDebtsIndividually();
+      }
+    } catch (e) {
+      print('Load debts summary error: $e');
+      // Fallback: try to get individual debt records
+      return await _loadDebtsIndividually();
+    }
+  }
+
+  Future<bool> _loadDebtsIndividually() async {
+    try {
       final results = await Future.wait([
         DebtRecordModelBackend.getTotalAmountIOwe(),
         DebtRecordModelBackend.getTotalAmountTheyOweMe(),
@@ -77,17 +143,27 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
           totalTheyOwe = theirDebtsAmount;
           activeDebts = allDebts.where((debt) => !debt.isPaidBack).length;
           overdueCount = overdueDebts.length;
-          isLoading = false;
-          errorMessage = null;
         });
       }
+      return true;
     } catch (e) {
+      print('Load debts individually error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _loadContactsCount() async {
+    try {
+      final contacts = await ContactModelBackend.getAllContacts();
       if (mounted) {
         setState(() {
-          isLoading = false;
-          errorMessage = _getErrorMessage(e);
+          totalContacts = contacts.length;
         });
       }
+      return true;
+    } catch (e) {
+      print('Load contacts count error: $e');
+      return false;
     }
   }
 
@@ -526,7 +602,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       children: [
         Expanded(
           child: _buildStatusCard(
-            'Active',
+            'Active Debts',
             activeDebts.toString(),
             Theme.of(context).colorScheme.tertiary,
             Icons.receipt_long,
@@ -629,7 +705,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
         const SizedBox(height: 16),
         _buildActionCard(
           'Manage Contacts',
-          'Add, edit, or view your contacts',
+          'Add, edit, or view your contacts ($totalContacts total)',
           Icons.people_outline,
           Theme.of(context).colorScheme.secondary,
           _navigateToContacts,

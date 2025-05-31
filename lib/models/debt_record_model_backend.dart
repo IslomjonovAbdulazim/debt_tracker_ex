@@ -1,3 +1,5 @@
+import 'package:debt_tracker_ex/config/app_logger.dart';
+
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 
@@ -30,10 +32,10 @@ class DebtRecordModelBackend {
   Map<String, dynamic> toJson() {
     return {
       'id': recordId,
-      'contact_id': contactId,  // Changed to snake_case
+      'contact': contactId,  // Changed to snake_case
       'contact_name': contactName,  // Changed to snake_case
       'debt_amount': debtAmount,  // Changed to snake_case
-      'debt_description': debtDescription,  // Changed to snake_case
+      'description': debtDescription,  // Changed to snake_case
       'created_date': createdDate.toIso8601String(),  // Changed to snake_case
       'due_date': dueDate.toIso8601String(),  // Changed to snake_case
       'is_my_debt': isMyDebt,  // Changed to snake_case
@@ -45,10 +47,10 @@ class DebtRecordModelBackend {
   factory DebtRecordModelBackend.fromJson(Map<String, dynamic> json) {
     return DebtRecordModelBackend(
       recordId: json['id']?.toString() ?? '',  // API uses 'id'
-      contactId: json['contact_id']?.toString() ?? '',
+      contactId: json['contact']?.toString() ?? '',
       contactName: json['contact_name'] ?? '',
       debtAmount: (json['debt_amount'] ?? 0).toDouble(),
-      debtDescription: json['debt_description'] ?? '',
+      debtDescription: json['description'] ?? '',
       createdDate: DateTime.parse(
           json['created_date'] ?? DateTime.now().toIso8601String()
       ),
@@ -71,9 +73,9 @@ class DebtRecordModelBackend {
       final response = await _apiService.post(
         ApiConfig.createDebtEndpoint,
         {
-          'contact_id': debtRecord.contactId,
+          'contact': debtRecord.contactId,
           'debt_amount': debtRecord.debtAmount,
-          'debt_description': debtRecord.debtDescription,
+          'description': debtRecord.debtDescription,
           'due_date': debtRecord.dueDate.toIso8601String().split('T')[0], // Only date part
           'is_my_debt': debtRecord.isMyDebt,
         },
@@ -203,9 +205,9 @@ class DebtRecordModelBackend {
       final response = await _apiService.put(
         '${ApiConfig.updateDebtEndpoint}/${updatedRecord.recordId}',
         {
-          'contact_id': updatedRecord.contactId,
+          'contact': updatedRecord.contactId,
           'debt_amount': updatedRecord.debtAmount,
-          'debt_description': updatedRecord.debtDescription,
+          'description': updatedRecord.debtDescription,
           'due_date': updatedRecord.dueDate.toIso8601String().split('T')[0],
           'is_my_debt': updatedRecord.isMyDebt,
           'is_paid_back': updatedRecord.isPaidBack,
@@ -247,13 +249,28 @@ class DebtRecordModelBackend {
     }
   }
 
-  // Calculate: Get total amount I owe
+  // Calculate: Get total amount I owe - Updated to handle new API response
   static Future<double> getTotalAmountIOwe() async {
     try {
       final response = await _apiService.get(ApiConfig.debtsSummaryEndpoint);
 
-      if (response['success']) {
-        return (response['data']?['summary']?['total_i_owe'] ?? 0).toDouble();
+      if (response['success'] && response['data'] != null) {
+        final List<dynamic> summaryData = response['data'] ?? [];
+        double total = 0.0;
+
+        for (final item in summaryData) {
+          if (item is Map<String, dynamic>) {
+            final bool isMyDebt = item['is_my_debt'] == true;
+            final bool isPaidBack = item['is_paid_back'] == true;
+
+            if (isMyDebt && !isPaidBack) {
+              final double amount = double.tryParse(item['debt_amount']?.toString() ?? '0') ?? 0.0;
+              total += amount.abs(); // Use absolute value
+            }
+          }
+        }
+
+        return total;
       }
 
       return 0.0;
@@ -263,19 +280,100 @@ class DebtRecordModelBackend {
     }
   }
 
-  // Calculate: Get total amount they owe me
+  // Calculate: Get total amount they owe me - Updated to handle new API response
   static Future<double> getTotalAmountTheyOweMe() async {
     try {
       final response = await _apiService.get(ApiConfig.debtsSummaryEndpoint);
 
-      if (response['success']) {
-        return (response['data']?['summary']?['total_they_owe'] ?? 0).toDouble();
+      if (response['success'] && response['data'] != null) {
+        final List<dynamic> summaryData = response['data'] ?? [];
+        double total = 0.0;
+
+        for (final item in summaryData) {
+          if (item is Map<String, dynamic>) {
+            final bool isMyDebt = item['is_my_debt'] == true;
+            final bool isPaidBack = item['is_paid_back'] == true;
+
+            if (!isMyDebt && !isPaidBack) {
+              final double amount = double.tryParse(item['debt_amount']?.toString() ?? '0') ?? 0.0;
+              total += amount.abs(); // Use absolute value
+            }
+          }
+        }
+
+        return total;
       }
 
       return 0.0;
     } catch (e) {
       print('Get total amount they owe me error: $e');
       return 0.0;
+    }
+  }
+
+  // Get summary data directly from API - New method to handle the summary response
+  static Future<Map<String, dynamic>> getDebtsSummary() async {
+    try {
+      final response = await _apiService.get(ApiConfig.debtsSummaryEndpoint);
+
+      if (response['success'] && response['data'] != null) {
+        final List<dynamic> summaryData = response['data'] ?? [];
+        AppLogger.info(summaryData.toString());
+
+
+        double totalIOwe = 0.0;
+        double totalTheyOwe = 0.0;
+        int activeDebts = 0;
+        int overdueCount = 0;
+
+        // for (final item in summaryData) {
+        //   if (item is Map<String, dynamic>) {
+        //     final double amount = double.tryParse(item['debt_amount']?.toString() ?? '0') ?? 0.0;
+        //     final bool isMyDebt = item['is_my_debt'] == true;
+        //     final bool isPaidBack = item['is_paid_back'] == true;
+        //     final bool isOverdue = item['is_overdue'] == true;
+        //
+        //     if (!isPaidBack) {
+        //       activeDebts++;
+        //
+        //       if (isMyDebt) {
+        //         totalIOwe += amount.abs();
+        //       } else {
+        //         totalTheyOwe += amount.abs();
+        //       }
+        //
+        //       if (isOverdue) {
+        //         overdueCount++;
+        //       }
+        //     }
+        //   }
+        // }
+
+        return {
+          'success': true,
+          'total_i_owe': response["total_i_owe"],
+          'total_they_owe': response["total_they_owe"],
+          'active_debts_count': response["active_debts_count"],
+          'overdue_debts_count': response["overdue_debts_count"],
+        };
+      }
+
+      return {
+        'success': false,
+        'totalIOwe': 0.0,
+        'totalTheyOwe': 0.0,
+        'activeDebts': 0,
+        'overdueCount': 0,
+      };
+    } catch (e) {
+      print('Get debts summary error: $e');
+      return {
+        'success': false,
+        'totalIOwe': 0.0,
+        'totalTheyOwe': 0.0,
+        'activeDebts': 0,
+        'overdueCount': 0,
+      };
     }
   }
 

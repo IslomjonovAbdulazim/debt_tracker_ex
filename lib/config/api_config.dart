@@ -37,13 +37,13 @@ class ApiConfig {
   static const String debtsByContactEndpoint = '/debts/contact'; // + /{contact_id}
   static const String debtsSummaryEndpoint = '/debts/summary';
 
-  // Payment endpoints
+  // Payment endpoints - Updated to match your API structure
   static const String paymentsEndpoint = '/payments';
   static const String createPaymentEndpoint = '/payments';
-  static const String myPaymentsEndpoint = '/payments/my-payments';
+  static const String myPaymentsEndpoint = '/payments/amount'; // Updated endpoint
   static const String theirPaymentsEndpoint = '/payments/their-payments';
   static const String recentPaymentsEndpoint = '/payments'; // Use ?date_from= query
-  static const String paymentsByContactEndpoint = '/payments'; // Use ?contact_name= query
+  static const String paymentsByContactEndpoint = '/payments'; // Use ?contact= query
 
   // Request timeout
   static const Duration requestTimeout = Duration(seconds: 30);
