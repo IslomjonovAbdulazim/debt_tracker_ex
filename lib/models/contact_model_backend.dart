@@ -1,4 +1,3 @@
-// Enhanced ContactModelBackend with validation and caching
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 
@@ -40,7 +39,6 @@ class ContactModelBackend {
       return 'Phone number is required';
     }
 
-    // Remove all non-digits
     final digitsOnly = phone.replaceAll(RegExp(r'[^\d]'), '');
 
     if (digitsOnly.length < 9) {
@@ -54,7 +52,7 @@ class ContactModelBackend {
 
   static String? validateEmail(String? email) {
     if (email == null || email.trim().isEmpty) {
-      return null; // Email is optional
+      return null;
     }
 
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -67,7 +65,7 @@ class ContactModelBackend {
   // Cache management
   static bool get _isCacheValid {
     if (_cachedContacts == null || _lastCacheUpdate == null) return false;
-    return DateTime.now().difference(_lastCacheUpdate!).inMinutes < 5; // 5 minute cache
+    return DateTime.now().difference(_lastCacheUpdate!).inMinutes < 5;
   }
 
   static void _updateCache(List<ContactModelBackend> contacts) {
@@ -108,7 +106,6 @@ class ContactModelBackend {
   // Create: Save new contact
   static Future<Map<String, dynamic>> createContact(ContactModelBackend contact) async {
     try {
-      // Validate before sending
       final nameError = validateFullName(contact.fullName);
       final phoneError = validatePhoneNumber(contact.phoneNumber);
       final emailError = validateEmail(contact.email);
@@ -135,7 +132,7 @@ class ContactModelBackend {
       );
 
       if (response['success']) {
-        clearCache(); // Clear cache to force refresh
+        clearCache();
       }
 
       return response;
@@ -151,7 +148,6 @@ class ContactModelBackend {
   // Read: Get all contacts with caching
   static Future<List<ContactModelBackend>> getAllContacts({bool forceRefresh = false}) async {
     try {
-      // Return cached data if valid and not forcing refresh
       if (!forceRefresh && _isCacheValid) {
         return _cachedContacts!;
       }
@@ -168,7 +164,6 @@ class ContactModelBackend {
             .map((json) => ContactModelBackend.fromJson(json))
             .toList();
 
-        // Sort by name for better UX
         contacts.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
 
         _updateCache(contacts);
@@ -178,7 +173,6 @@ class ContactModelBackend {
       return [];
     } catch (e) {
       print('Get all contacts error: $e');
-      // Return cached data if available, even if stale
       return _cachedContacts ?? [];
     }
   }
@@ -186,13 +180,13 @@ class ContactModelBackend {
   // Read: Get contact by ID
   static Future<ContactModelBackend?> getContactById(String id) async {
     try {
-      // Check cache first
       if (_isCacheValid) {
-        final cached = _cachedContacts?.firstWhere(
-              (contact) => contact.id == id,
-          orElse: () => null as ContactModelBackend,
-        );
-        if (cached != null) return cached;
+        try {
+          final cached = _cachedContacts?.firstWhere((contact) => contact.id == id);
+          if (cached != null) return cached;
+        } catch (e) {
+          // Contact not found in cache, proceed to API
+        }
       }
 
       final response = await _apiService.get('${ApiConfig.contactsEndpoint}/$id');
@@ -211,7 +205,6 @@ class ContactModelBackend {
   // Update: Update existing contact
   static Future<Map<String, dynamic>> updateContact(ContactModelBackend updatedContact) async {
     try {
-      // Validate before sending
       final nameError = validateFullName(updatedContact.fullName);
       final phoneError = validatePhoneNumber(updatedContact.phoneNumber);
       final emailError = validateEmail(updatedContact.email);
@@ -238,7 +231,7 @@ class ContactModelBackend {
       );
 
       if (response['success']) {
-        clearCache(); // Clear cache to force refresh
+        clearCache();
       }
 
       return response;
@@ -257,7 +250,7 @@ class ContactModelBackend {
       final response = await _apiService.delete('${ApiConfig.deleteContactEndpoint}/$id');
 
       if (response['success']) {
-        clearCache(); // Clear cache to force refresh
+        clearCache();
       }
 
       return response;
@@ -277,7 +270,6 @@ class ContactModelBackend {
         return getAllContacts();
       }
 
-      // Try local search in cache first
       if (_isCacheValid) {
         final query = searchQuery.toLowerCase().trim();
         return _cachedContacts!
@@ -288,7 +280,6 @@ class ContactModelBackend {
             .toList();
       }
 
-      // Fallback to API search
       final response = await _apiService.get(
           '${ApiConfig.searchContactsEndpoint}?search=${Uri.encodeComponent(searchQuery.trim())}'
       );
@@ -339,4 +330,30 @@ class ContactModelBackend {
     return '${names[0][0]}${names[names.length - 1][0]}'.toUpperCase();
   }
 
-  String get formatte
+  String get formattedPhoneNumber {
+    final cleaned = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    if (cleaned.startsWith('+998')) {
+      if (cleaned.length == 13) {
+        return '+998 ${cleaned.substring(4, 6)} ${cleaned.substring(6, 9)} ${cleaned.substring(9, 11)} ${cleaned.substring(11)}';
+      }
+    }
+    return phoneNumber;
+  }
+
+  bool get hasEmail => email != null && email!.trim().isNotEmpty;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is ContactModelBackend &&
+              runtimeType == other.runtimeType &&
+              id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'ContactModelBackend{id: $id, fullName: $fullName, phoneNumber: $phoneNumber}';
+  }
+}
