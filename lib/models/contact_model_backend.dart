@@ -82,10 +82,10 @@ class ContactModelBackend {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'fullName': fullName,
-      'phoneNumber': phoneNumber,
+      'full_name': fullName,  // Changed from fullName to full_name
+      'phone_number': phoneNumber,  // Changed from phoneNumber to phone_number
       'email': email,
-      'createdDate': createdDate.toIso8601String(),
+      'created_at': createdDate.toIso8601String(),  // Changed from createdDate to created_at
     };
   }
 
@@ -93,12 +93,11 @@ class ContactModelBackend {
   factory ContactModelBackend.fromJson(Map<String, dynamic> json) {
     return ContactModelBackend(
       id: json['id']?.toString() ?? '',
-      fullName: json['fullName'] ?? json['full_name'] ?? '',
-      phoneNumber: json['phoneNumber'] ?? json['phone_number'] ?? '',
+      fullName: json['full_name'] ?? '',  // API sends full_name
+      phoneNumber: json['phone_number'] ?? '',  // API sends phone_number
       email: json['email'],
       createdDate: DateTime.parse(
-          json['createdDate'] ?? json['created_date'] ?? json['created_at'] ??
-              DateTime.now().toIso8601String()
+          json['created_at'] ?? DateTime.now().toIso8601String()  // API sends created_at
       ),
     );
   }
@@ -115,8 +114,8 @@ class ContactModelBackend {
           'success': false,
           'message': 'Validation failed',
           'errors': {
-            if (nameError != null) 'fullName': nameError,
-            if (phoneError != null) 'phoneNumber': phoneError,
+            if (nameError != null) 'full_name': nameError,  // Changed to snake_case
+            if (phoneError != null) 'phone_number': phoneError,  // Changed to snake_case
             if (emailError != null) 'email': emailError,
           }
         };
@@ -125,8 +124,8 @@ class ContactModelBackend {
       final response = await _apiService.post(
         ApiConfig.createContactEndpoint,
         {
-          'fullName': contact.fullName.trim(),
-          'phoneNumber': contact.phoneNumber.trim(),
+          'full_name': contact.fullName.trim(),  // Send as full_name
+          'phone_number': contact.phoneNumber.trim(),  // Send as phone_number
           if (contact.email != null) 'email': contact.email!.trim(),
         },
       );
@@ -155,10 +154,8 @@ class ContactModelBackend {
       final response = await _apiService.get(ApiConfig.contactsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> contactsData = response['contacts'] ??
-            response['data']?['contacts'] ??
-            response['data'] ??
-            [];
+        // API returns: {"success": true, "data": {"contacts": [...], "total": 1}}
+        final List<dynamic> contactsData = response['data']?['contacts'] ?? [];
 
         final contacts = contactsData
             .map((json) => ContactModelBackend.fromJson(json))
@@ -192,7 +189,8 @@ class ContactModelBackend {
       final response = await _apiService.get('${ApiConfig.contactsEndpoint}/$id');
 
       if (response['success']) {
-        return ContactModelBackend.fromJson(response['contact'] ?? response['data']);
+        // API returns: {"success": true, "data": {"contact": {...}}}
+        return ContactModelBackend.fromJson(response['data']['contact']);
       }
 
       return null;
@@ -214,8 +212,8 @@ class ContactModelBackend {
           'success': false,
           'message': 'Validation failed',
           'errors': {
-            if (nameError != null) 'fullName': nameError,
-            if (phoneError != null) 'phoneNumber': phoneError,
+            if (nameError != null) 'full_name': nameError,
+            if (phoneError != null) 'phone_number': phoneError,
             if (emailError != null) 'email': emailError,
           }
         };
@@ -224,8 +222,8 @@ class ContactModelBackend {
       final response = await _apiService.put(
         '${ApiConfig.updateContactEndpoint}/${updatedContact.id}',
         {
-          'fullName': updatedContact.fullName.trim(),
-          'phoneNumber': updatedContact.phoneNumber.trim(),
+          'full_name': updatedContact.fullName.trim(),
+          'phone_number': updatedContact.phoneNumber.trim(),
           if (updatedContact.email != null) 'email': updatedContact.email!.trim(),
         },
       );
@@ -280,15 +278,13 @@ class ContactModelBackend {
             .toList();
       }
 
+      // Use query parameter as per API docs
       final response = await _apiService.get(
           '${ApiConfig.searchContactsEndpoint}?search=${Uri.encodeComponent(searchQuery.trim())}'
       );
 
       if (response['success']) {
-        final List<dynamic> contactsData = response['contacts'] ??
-            response['data']?['contacts'] ??
-            response['data'] ??
-            [];
+        final List<dynamic> contactsData = response['data']?['contacts'] ?? [];
         return contactsData
             .map((json) => ContactModelBackend.fromJson(json))
             .toList();

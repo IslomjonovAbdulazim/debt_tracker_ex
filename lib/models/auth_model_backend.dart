@@ -9,6 +9,7 @@ class AuthModelBackend {
   final String userId;
   final String email;
   final String fullName;
+  final String phoneNumber; // Added phone number as required by API
   final bool isVerified;
   final DateTime createdDate;
 
@@ -16,6 +17,7 @@ class AuthModelBackend {
     required this.userId,
     required this.email,
     required this.fullName,
+    required this.phoneNumber, // Added phone number
     required this.isVerified,
     required this.createdDate,
   });
@@ -25,28 +27,31 @@ class AuthModelBackend {
     return {
       'userId': userId,
       'email': email,
-      'fullName': fullName,
-      'isVerified': isVerified,
-      'createdDate': createdDate.toIso8601String(),
+      'full_name': fullName,  // Changed to snake_case
+      'phone_number': phoneNumber,  // Added phone number
+      'is_verified': isVerified,  // Changed to snake_case
+      'created_at': createdDate.toIso8601String(),  // Changed to snake_case
     };
   }
 
   // Create from JSON
   factory AuthModelBackend.fromJson(Map<String, dynamic> json) {
     return AuthModelBackend(
-      userId: json['userId'] ?? json['id'] ?? '',
+      userId: json['userId'] ?? json['id']?.toString() ?? '',
       email: json['email'] ?? '',
-      fullName: json['fullName'] ?? json['full_name'] ?? '',
-      isVerified: json['isVerified'] ?? json['is_verified'] ?? false,
-      createdDate: DateTime.parse(json['createdDate'] ?? json['created_at'] ?? DateTime.now().toIso8601String()),
+      fullName: json['full_name'] ?? '',  // API uses snake_case
+      phoneNumber: json['phone_number'] ?? '',  // API uses snake_case
+      isVerified: json['is_verified'] ?? false,  // API uses snake_case
+      createdDate: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
     );
   }
 
-  // Register new user
+  // Register new user - Updated to match API requirements
   static Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String fullName,
+    required String phoneNumber, // Now required
   }) async {
     try {
       final response = await _apiService.post(
@@ -54,16 +59,22 @@ class AuthModelBackend {
         {
           'email': email.toLowerCase(),
           'password': password,
-          'fullName': fullName,
+          'full_name': fullName,  // Send as full_name
+          'phone_number': phoneNumber,  // Send as phone_number
         },
         requiresAuth: false,
       );
 
       if (response['success']) {
+        // Save token if present in response
+        if (response['data']?['token'] != null) {
+          await _saveToken(response['data']['token']);
+        }
+
         return {
           'success': true,
           'message': 'Registration successful',
-          'userId': response['user']?['id'] ?? response['userId'],
+          'userId': response['data']?['user']?['id']?.toString(),
           'verificationCode': response['verificationCode'], // For demo/testing
         };
       } else {
@@ -96,8 +107,13 @@ class AuthModelBackend {
       );
 
       if (response['success']) {
+        // Save token
+        if (response['data']?['token'] != null) {
+          await _saveToken(response['data']['token']);
+        }
+
         // Save current user data
-        final user = AuthModelBackend.fromJson(response['user']);
+        final user = AuthModelBackend.fromJson(response['data']['user']);
         await _saveCurrentUser(user);
 
         return {
@@ -236,6 +252,7 @@ class AuthModelBackend {
     } finally {
       await _apiService.logout();
       await _clearCurrentUser();
+      await _clearToken();
     }
   }
 
@@ -263,6 +280,18 @@ class AuthModelBackend {
     return user != null && token != null;
   }
 
+  // Save token
+  static Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', token);
+  }
+
+  // Clear token
+  static Future<void> _clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+  }
+
   // Save current user data locally
   static Future<void> _saveCurrentUser(AuthModelBackend user) async {
     final prefs = await SharedPreferences.getInstance();
@@ -281,7 +310,7 @@ class AuthModelBackend {
       final response = await _apiService.get(ApiConfig.getCurrentUserEndpoint);
 
       if (response['success']) {
-        final user = AuthModelBackend.fromJson(response['user']);
+        final user = AuthModelBackend.fromJson(response['data']['user']);
         await _saveCurrentUser(user);
         return user;
       }

@@ -2,8 +2,9 @@ class ApiConfig {
   // TODO: Change this to your real backend URL when integrating
   static bool get isProduction => baseUrl.contains('api.debttracker.com');
   static bool get isDevelopment => baseUrl.contains('localhost');
-  static const String baseUrl = 'http://localhost:8080/api';
-  // static const String baseUrl = 'https://your-backend-domain.com/api';
+  static const String baseUrl = 'https://api.debttracker.com/v1';
+  // static const String baseUrl = 'http://localhost:8080/v1';
+
   // Logging
   static bool get enableApiLogging => isDevelopment;
 
@@ -22,7 +23,7 @@ class ApiConfig {
   static const String createContactEndpoint = '/contacts';
   static const String updateContactEndpoint = '/contacts'; // + /{id}
   static const String deleteContactEndpoint = '/contacts'; // + /{id}
-  static const String searchContactsEndpoint = '/contacts/search';
+  static const String searchContactsEndpoint = '/contacts'; // Use ?search= query param
 
   // Debt endpoints
   static const String debtsEndpoint = '/debts';
@@ -33,7 +34,7 @@ class ApiConfig {
   static const String myDebtsEndpoint = '/debts/my-debts';
   static const String theirDebtsEndpoint = '/debts/their-debts';
   static const String overdueDebtsEndpoint = '/debts/overdue';
-  static const String debtsByContactEndpoint = '/debts/by-contact'; // + /{contactId}
+  static const String debtsByContactEndpoint = '/debts/contact'; // + /{contact_id}
   static const String debtsSummaryEndpoint = '/debts/summary';
 
   // Payment endpoints
@@ -41,8 +42,8 @@ class ApiConfig {
   static const String createPaymentEndpoint = '/payments';
   static const String myPaymentsEndpoint = '/payments/my-payments';
   static const String theirPaymentsEndpoint = '/payments/their-payments';
-  static const String recentPaymentsEndpoint = '/payments/recent';
-  static const String paymentsByContactEndpoint = '/payments/by-contact'; // + /{contactName}
+  static const String recentPaymentsEndpoint = '/payments'; // Use ?date_from= query
+  static const String paymentsByContactEndpoint = '/payments'; // Use ?contact_name= query
 
   // Request timeout
   static const Duration requestTimeout = Duration(seconds: 30);

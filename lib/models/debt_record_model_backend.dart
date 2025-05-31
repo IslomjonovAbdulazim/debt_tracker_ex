@@ -29,34 +29,34 @@ class DebtRecordModelBackend {
   // Convert to JSON for API requests
   Map<String, dynamic> toJson() {
     return {
-      'recordId': recordId,
-      'contactId': contactId,
-      'contactName': contactName,
-      'debtAmount': debtAmount,
-      'debtDescription': debtDescription,
-      'createdDate': createdDate.toIso8601String(),
-      'dueDate': dueDate.toIso8601String(),
-      'isMyDebt': isMyDebt,
-      'isPaidBack': isPaidBack,
+      'id': recordId,
+      'contact_id': contactId,  // Changed to snake_case
+      'contact_name': contactName,  // Changed to snake_case
+      'debt_amount': debtAmount,  // Changed to snake_case
+      'debt_description': debtDescription,  // Changed to snake_case
+      'created_date': createdDate.toIso8601String(),  // Changed to snake_case
+      'due_date': dueDate.toIso8601String(),  // Changed to snake_case
+      'is_my_debt': isMyDebt,  // Changed to snake_case
+      'is_paid_back': isPaidBack,  // Changed to snake_case
     };
   }
 
   // Create from JSON response
   factory DebtRecordModelBackend.fromJson(Map<String, dynamic> json) {
     return DebtRecordModelBackend(
-      recordId: json['recordId'] ?? json['record_id'] ?? json['id'] ?? '',
-      contactId: json['contactId'] ?? json['contact_id'] ?? '',
-      contactName: json['contactName'] ?? json['contact_name'] ?? '',
-      debtAmount: (json['debtAmount'] ?? json['debt_amount'] ?? 0).toDouble(),
-      debtDescription: json['debtDescription'] ?? json['debt_description'] ?? '',
+      recordId: json['id']?.toString() ?? '',  // API uses 'id'
+      contactId: json['contact_id']?.toString() ?? '',
+      contactName: json['contact_name'] ?? '',
+      debtAmount: (json['debt_amount'] ?? 0).toDouble(),
+      debtDescription: json['debt_description'] ?? '',
       createdDate: DateTime.parse(
-          json['createdDate'] ?? json['created_date'] ?? json['created_at'] ?? DateTime.now().toIso8601String()
+          json['created_date'] ?? DateTime.now().toIso8601String()
       ),
       dueDate: DateTime.parse(
-          json['dueDate'] ?? json['due_date'] ?? DateTime.now().toIso8601String()
+          json['due_date'] ?? DateTime.now().toIso8601String()
       ),
-      isMyDebt: json['isMyDebt'] ?? json['is_my_debt'] ?? false,
-      isPaidBack: json['isPaidBack'] ?? json['is_paid_back'] ?? false,
+      isMyDebt: json['is_my_debt'] ?? false,
+      isPaidBack: json['is_paid_back'] ?? false,
     );
   }
 
@@ -71,12 +71,11 @@ class DebtRecordModelBackend {
       final response = await _apiService.post(
         ApiConfig.createDebtEndpoint,
         {
-          'contactId': debtRecord.contactId,
-          'contactName': debtRecord.contactName,
-          'debtAmount': debtRecord.debtAmount,
-          'debtDescription': debtRecord.debtDescription,
-          'dueDate': debtRecord.dueDate.toIso8601String(),
-          'isMyDebt': debtRecord.isMyDebt,
+          'contact_id': debtRecord.contactId,
+          'debt_amount': debtRecord.debtAmount,
+          'debt_description': debtRecord.debtDescription,
+          'due_date': debtRecord.dueDate.toIso8601String().split('T')[0], // Only date part
+          'is_my_debt': debtRecord.isMyDebt,
         },
       );
 
@@ -93,7 +92,7 @@ class DebtRecordModelBackend {
       final response = await _apiService.get(ApiConfig.debtsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> debtsData = response['debts'] ?? response['data'] ?? [];
+        final List<dynamic> debtsData = response['data']?['debts'] ?? [];
         return debtsData
             .map((json) => DebtRecordModelBackend.fromJson(json))
             .toList();
@@ -112,7 +111,7 @@ class DebtRecordModelBackend {
       final response = await _apiService.get('${ApiConfig.debtsEndpoint}/$recordId');
 
       if (response['success']) {
-        return DebtRecordModelBackend.fromJson(response['debt'] ?? response['data']);
+        return DebtRecordModelBackend.fromJson(response['data']['debt']);
       }
 
       return null;
@@ -128,7 +127,7 @@ class DebtRecordModelBackend {
       final response = await _apiService.get(ApiConfig.myDebtsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> debtsData = response['debts'] ?? response['data'] ?? [];
+        final List<dynamic> debtsData = response['data']?['debts'] ?? [];
         return debtsData
             .map((json) => DebtRecordModelBackend.fromJson(json))
             .toList();
@@ -147,7 +146,7 @@ class DebtRecordModelBackend {
       final response = await _apiService.get(ApiConfig.theirDebtsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> debtsData = response['debts'] ?? response['data'] ?? [];
+        final List<dynamic> debtsData = response['data']?['debts'] ?? [];
         return debtsData
             .map((json) => DebtRecordModelBackend.fromJson(json))
             .toList();
@@ -166,7 +165,7 @@ class DebtRecordModelBackend {
       final response = await _apiService.get(ApiConfig.overdueDebtsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> debtsData = response['debts'] ?? response['data'] ?? [];
+        final List<dynamic> debtsData = response['data']?['debts'] ?? [];
         return debtsData
             .map((json) => DebtRecordModelBackend.fromJson(json))
             .toList();
@@ -185,7 +184,7 @@ class DebtRecordModelBackend {
       final response = await _apiService.get('${ApiConfig.debtsByContactEndpoint}/$contactId');
 
       if (response['success']) {
-        final List<dynamic> debtsData = response['debts'] ?? response['data'] ?? [];
+        final List<dynamic> debtsData = response['data']?['debts'] ?? [];
         return debtsData
             .map((json) => DebtRecordModelBackend.fromJson(json))
             .toList();
@@ -204,13 +203,12 @@ class DebtRecordModelBackend {
       final response = await _apiService.put(
         '${ApiConfig.updateDebtEndpoint}/${updatedRecord.recordId}',
         {
-          'contactId': updatedRecord.contactId,
-          'contactName': updatedRecord.contactName,
-          'debtAmount': updatedRecord.debtAmount,
-          'debtDescription': updatedRecord.debtDescription,
-          'dueDate': updatedRecord.dueDate.toIso8601String(),
-          'isMyDebt': updatedRecord.isMyDebt,
-          'isPaidBack': updatedRecord.isPaidBack,
+          'contact_id': updatedRecord.contactId,
+          'debt_amount': updatedRecord.debtAmount,
+          'debt_description': updatedRecord.debtDescription,
+          'due_date': updatedRecord.dueDate.toIso8601String().split('T')[0],
+          'is_my_debt': updatedRecord.isMyDebt,
+          'is_paid_back': updatedRecord.isPaidBack,
         },
       );
 
@@ -226,7 +224,9 @@ class DebtRecordModelBackend {
     try {
       final response = await _apiService.put(
         '${ApiConfig.markDebtPaidEndpoint}/$recordId/mark-paid',
-        {},
+        {
+          'payment_description': 'Marked as paid via app',
+        },
       );
 
       return response['success'] ?? false;
@@ -250,10 +250,10 @@ class DebtRecordModelBackend {
   // Calculate: Get total amount I owe
   static Future<double> getTotalAmountIOwe() async {
     try {
-      final response = await _apiService.get('${ApiConfig.debtsSummaryEndpoint}?type=my_debts');
+      final response = await _apiService.get(ApiConfig.debtsSummaryEndpoint);
 
       if (response['success']) {
-        return (response['totalAmount'] ?? response['total'] ?? 0).toDouble();
+        return (response['data']?['summary']?['total_i_owe'] ?? 0).toDouble();
       }
 
       return 0.0;
@@ -266,10 +266,10 @@ class DebtRecordModelBackend {
   // Calculate: Get total amount they owe me
   static Future<double> getTotalAmountTheyOweMe() async {
     try {
-      final response = await _apiService.get('${ApiConfig.debtsSummaryEndpoint}?type=their_debts');
+      final response = await _apiService.get(ApiConfig.debtsSummaryEndpoint);
 
       if (response['success']) {
-        return (response['totalAmount'] ?? response['total'] ?? 0).toDouble();
+        return (response['data']?['summary']?['total_they_owe'] ?? 0).toDouble();
       }
 
       return 0.0;

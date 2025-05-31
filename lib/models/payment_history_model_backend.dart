@@ -25,28 +25,28 @@ class PaymentHistoryModelBackend {
   // Convert to JSON for API requests
   Map<String, dynamic> toJson() {
     return {
-      'paymentId': paymentId,
-      'originalDebtId': originalDebtId,
-      'contactName': contactName,
-      'paidAmount': paidAmount,
-      'paymentDescription': paymentDescription,
-      'paymentDate': paymentDate.toIso8601String(),
-      'wasMyDebt': wasMyDebt,
+      'id': paymentId,
+      'original_debt_id': originalDebtId,  // Changed to snake_case
+      'contact_name': contactName,  // Changed to snake_case
+      'paid_amount': paidAmount,  // Changed to snake_case
+      'payment_description': paymentDescription,  // Changed to snake_case
+      'payment_date': paymentDate.toIso8601String(),  // Changed to snake_case
+      'was_my_debt': wasMyDebt,  // Changed to snake_case
     };
   }
 
   // Create from JSON response
   factory PaymentHistoryModelBackend.fromJson(Map<String, dynamic> json) {
     return PaymentHistoryModelBackend(
-      paymentId: json['paymentId'] ?? json['payment_id'] ?? json['id'] ?? '',
-      originalDebtId: json['originalDebtId'] ?? json['original_debt_id'] ?? '',
-      contactName: json['contactName'] ?? json['contact_name'] ?? '',
-      paidAmount: (json['paidAmount'] ?? json['paid_amount'] ?? 0).toDouble(),
-      paymentDescription: json['paymentDescription'] ?? json['payment_description'] ?? '',
+      paymentId: json['id']?.toString() ?? '',  // API uses 'id'
+      originalDebtId: json['original_debt_id']?.toString() ?? '',
+      contactName: json['contact_name'] ?? '',
+      paidAmount: (json['paid_amount'] ?? 0).toDouble(),
+      paymentDescription: json['payment_description'] ?? '',
       paymentDate: DateTime.parse(
-          json['paymentDate'] ?? json['payment_date'] ?? json['created_at'] ?? DateTime.now().toIso8601String()
+          json['payment_date'] ?? DateTime.now().toIso8601String()
       ),
-      wasMyDebt: json['wasMyDebt'] ?? json['was_my_debt'] ?? false,
+      wasMyDebt: json['was_my_debt'] ?? false,
     );
   }
 
@@ -56,11 +56,11 @@ class PaymentHistoryModelBackend {
       final response = await _apiService.post(
         ApiConfig.createPaymentEndpoint,
         {
-          'originalDebtId': paymentHistory.originalDebtId,
-          'contactName': paymentHistory.contactName,
-          'paidAmount': paymentHistory.paidAmount,
-          'paymentDescription': paymentHistory.paymentDescription,
-          'wasMyDebt': paymentHistory.wasMyDebt,
+          'original_debt_id': paymentHistory.originalDebtId,
+          'contact_name': paymentHistory.contactName,
+          'paid_amount': paymentHistory.paidAmount,
+          'payment_description': paymentHistory.paymentDescription,
+          'was_my_debt': paymentHistory.wasMyDebt,
         },
       );
 
@@ -77,7 +77,7 @@ class PaymentHistoryModelBackend {
       final response = await _apiService.get(ApiConfig.paymentsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> paymentsData = response['payments'] ?? response['data'] ?? [];
+        final List<dynamic> paymentsData = response['data']?['payments'] ?? [];
         return paymentsData
             .map((json) => PaymentHistoryModelBackend.fromJson(json))
             .toList();
@@ -96,7 +96,7 @@ class PaymentHistoryModelBackend {
       final response = await _apiService.get('${ApiConfig.paymentsEndpoint}/$paymentId');
 
       if (response['success']) {
-        return PaymentHistoryModelBackend.fromJson(response['payment'] ?? response['data']);
+        return PaymentHistoryModelBackend.fromJson(response['data']['payment']);
       }
 
       return null;
@@ -112,7 +112,7 @@ class PaymentHistoryModelBackend {
       final response = await _apiService.get(ApiConfig.myPaymentsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> paymentsData = response['payments'] ?? response['data'] ?? [];
+        final List<dynamic> paymentsData = response['data']?['payments'] ?? [];
         return paymentsData
             .map((json) => PaymentHistoryModelBackend.fromJson(json))
             .toList();
@@ -131,7 +131,7 @@ class PaymentHistoryModelBackend {
       final response = await _apiService.get(ApiConfig.theirPaymentsEndpoint);
 
       if (response['success']) {
-        final List<dynamic> paymentsData = response['payments'] ?? response['data'] ?? [];
+        final List<dynamic> paymentsData = response['data']?['payments'] ?? [];
         return paymentsData
             .map((json) => PaymentHistoryModelBackend.fromJson(json))
             .toList();
@@ -144,15 +144,15 @@ class PaymentHistoryModelBackend {
     }
   }
 
-  // Read: Get payment history by contact name
+  // Read: Get payment history by contact name using query parameter
   static Future<List<PaymentHistoryModelBackend>> getPaymentsByContact(String contactName) async {
     try {
       final response = await _apiService.get(
-          '${ApiConfig.paymentsByContactEndpoint}/${Uri.encodeComponent(contactName)}'
+          '${ApiConfig.paymentsByContactEndpoint}?contact_name=${Uri.encodeComponent(contactName)}'
       );
 
       if (response['success']) {
-        final List<dynamic> paymentsData = response['payments'] ?? response['data'] ?? [];
+        final List<dynamic> paymentsData = response['data']?['payments'] ?? [];
         return paymentsData
             .map((json) => PaymentHistoryModelBackend.fromJson(json))
             .toList();
@@ -168,10 +168,14 @@ class PaymentHistoryModelBackend {
   // Read: Get recent payment histories (last 30 days)
   static Future<List<PaymentHistoryModelBackend>> getRecentPayments() async {
     try {
-      final response = await _apiService.get(ApiConfig.recentPaymentsEndpoint);
+      // Calculate date 30 days ago
+      final thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
+      final dateFromStr = thirtyDaysAgo.toIso8601String().split('T')[0]; // Only date part
+
+      final response = await _apiService.get('${ApiConfig.recentPaymentsEndpoint}?date_from=$dateFromStr');
 
       if (response['success']) {
-        final List<dynamic> paymentsData = response['payments'] ?? response['data'] ?? [];
+        final List<dynamic> paymentsData = response['data']?['payments'] ?? [];
         return paymentsData
             .map((json) => PaymentHistoryModelBackend.fromJson(json))
             .toList();
@@ -190,11 +194,11 @@ class PaymentHistoryModelBackend {
       final response = await _apiService.put(
         '${ApiConfig.paymentsEndpoint}/${updatedPayment.paymentId}',
         {
-          'originalDebtId': updatedPayment.originalDebtId,
-          'contactName': updatedPayment.contactName,
-          'paidAmount': updatedPayment.paidAmount,
-          'paymentDescription': updatedPayment.paymentDescription,
-          'wasMyDebt': updatedPayment.wasMyDebt,
+          'original_debt_id': updatedPayment.originalDebtId,
+          'contact_name': updatedPayment.contactName,
+          'paid_amount': updatedPayment.paidAmount,
+          'payment_description': updatedPayment.paymentDescription,
+          'was_my_debt': updatedPayment.wasMyDebt,
         },
       );
 
@@ -219,6 +223,13 @@ class PaymentHistoryModelBackend {
   // Calculate: Get total amount I have paid back
   static Future<double> getTotalAmountIPaid() async {
     try {
+      final response = await _apiService.get('${ApiConfig.paymentsEndpoint}?type=my_payments');
+
+      if (response['success']) {
+        return (response['data']?['summary']?['total_paid_by_me'] ?? 0).toDouble();
+      }
+
+      // Fallback: calculate from individual payments
       final myPayments = await getMyPayments();
       double total = 0.0;
       for (PaymentHistoryModelBackend payment in myPayments) {
@@ -234,6 +245,13 @@ class PaymentHistoryModelBackend {
   // Calculate: Get total amount they have paid me back
   static Future<double> getTotalAmountTheyPaid() async {
     try {
+      final response = await _apiService.get('${ApiConfig.paymentsEndpoint}?type=their_payments');
+
+      if (response['success']) {
+        return (response['data']?['summary']?['total_paid_to_me'] ?? 0).toDouble();
+      }
+
+      // Fallback: calculate from individual payments
       final theirPayments = await getTheirPayments();
       double total = 0.0;
       for (PaymentHistoryModelBackend payment in theirPayments) {

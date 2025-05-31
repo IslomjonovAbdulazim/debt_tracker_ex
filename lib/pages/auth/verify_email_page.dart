@@ -107,6 +107,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         email: widget.email,
         password: 'temp', // This won't actually re-register
         fullName: 'temp',
+        phoneNumber: '+998000000000', // Add this line
       );
 
       if (!mounted) return;
