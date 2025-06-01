@@ -1,6 +1,6 @@
 // lib/config/api_config.dart
 class ApiConfig {
-  // Base URL configuration
+  // Base URL configuration - Updated to match backend docs
   static const String baseUrl = 'https://islomjonovabdulazim-debt-tracker-backend-519e.twc1.net';
 
   // API versioning
@@ -15,7 +15,7 @@ class ApiConfig {
   static const Duration requestTimeout = Duration(seconds: 30);
   static const int maxRetries = 3;
 
-  // Authentication endpoints
+  // Authentication endpoints - Updated to match backend docs
   static const String registerEndpoint = '/auth/register';
   static const String verifyEmailEndpoint = '/auth/verify-email';
   static const String loginEndpoint = '/auth/login';
@@ -23,20 +23,28 @@ class ApiConfig {
   static const String forgotPasswordEndpoint = '/auth/forgot-password';
   static const String resetPasswordEndpoint = '/auth/reset-password';
   static const String resendCodeEndpoint = '/auth/resend-code';
+  static const String logoutEndpoint = '/auth/logout'; // Not in docs but kept for compatibility
 
-  // Contact endpoints
+  // Contact endpoints - Updated to match backend docs
   static const String contactsEndpoint = '/contacts';
+  static const String createContactEndpoint = '/contacts';
   static String getContactEndpoint(String id) => '/contacts/$id';
   static String updateContactEndpoint(String id) => '/contacts/$id';
-  static String deleteContactEndpoint(String id) => '/contacts/$id';
+  static String deleteContactEndpoint = '/contacts'; // Updated: no ID in base, will append
 
-  // Debt endpoints
+  // Debt endpoints - Updated to match backend docs
   static const String debtsEndpoint = '/debts';
-  static const String debtsOverviewEndpoint = '/debts/overview';
+  static const String createDebtEndpoint = '/debts';
+  static const String homeOverviewEndpoint = '/debts/overview'; // Updated endpoint name
   static String getDebtEndpoint(String id) => '/debts/$id';
   static String updateDebtEndpoint(String id) => '/debts/$id';
   static String deleteDebtEndpoint(String id) => '/debts/$id';
   static String markDebtPaidEndpoint(String id) => '/debts/$id/pay';
+
+  // Removed non-existent endpoints from original config
+  // These were not mentioned in the backend docs:
+  // - contactDebtsEndpoint
+  // - verifyResetCodeEndpoint
 
   // Health check endpoints
   static const String healthEndpoint = '/health';

@@ -87,36 +87,36 @@ class ContactModelBackend {
   }
 
   // =============================================
-  // JSON SERIALIZATION - Updated for API docs
+  // JSON SERIALIZATION - Updated for backend API
   // =============================================
 
-  // Convert to JSON for API requests - Updated to match API docs
+  // Convert to JSON for API requests - Updated to match backend API
   Map<String, dynamic> toJson() {
     return {
-      'fullname': fullName.trim(), // API expects 'fullname'
-      'phone_number': phoneNumber.trim(), // API expects 'phone_number'
-      if (email != null && email!.trim().isNotEmpty) 'email': email!.trim(),
+      'name': fullName.trim(), // Backend expects 'name'
+      'phone': phoneNumber.trim(), // Backend expects 'phone'
+      // Note: email not mentioned in backend contact creation docs
     };
   }
 
-  // Create from JSON response - Updated based on API docs structure
+  // Create from JSON response - Updated based on backend API structure
   factory ContactModelBackend.fromJson(Map<String, dynamic> json) {
     return ContactModelBackend(
       id: json['id']?.toString() ?? '',
-      fullName: json['fullname'] ?? '', // API returns 'fullname'
-      phoneNumber: json['phone_number'] ?? '', // API returns 'phone_number'
-      email: json['email'],
+      fullName: json['name'] ?? '', // Backend returns 'name'
+      phoneNumber: json['phone'] ?? '', // Backend returns 'phone'
+      email: json['email'], // May not be returned by backend
       createdDate: DateTime.parse(
-          json['created_date'] ?? json['created_at'] ?? DateTime.now().toIso8601String()
+          json['created_at'] ?? DateTime.now().toIso8601String()
       ),
     );
   }
 
   // =============================================
-  // API METHODS - Updated to match actual API
+  // API METHODS - Updated to match backend API
   // =============================================
 
-  // Create: Save new contact - Updated to use /contact
+  // Create: Save new contact - Updated to use backend API
   static Future<Map<String, dynamic>> createContact(ContactModelBackend contact) async {
     try {
       AppLogger.dataOperation('CREATE', 'Contact', id: contact.id);
@@ -124,17 +124,15 @@ class ContactModelBackend {
       // Validate before sending
       final nameError = validateFullName(contact.fullName);
       final phoneError = validatePhoneNumber(contact.phoneNumber);
-      final emailError = validateEmail(contact.email);
 
-      if (nameError != null || phoneError != null || emailError != null) {
+      if (nameError != null || phoneError != null) {
         AppLogger.validation('Contact', 'Validation failed');
         return {
           'success': false,
           'message': 'Validation failed',
           'errors': {
-            if (nameError != null) 'fullname': nameError,
-            if (phoneError != null) 'phone_number': phoneError,
-            if (emailError != null) 'email': emailError,
+            if (nameError != null) 'name': nameError,
+            if (phoneError != null) 'phone': phoneError,
           }
         };
       }
@@ -164,7 +162,7 @@ class ContactModelBackend {
     }
   }
 
-  // Read: Get all contacts - Updated to use /contacts
+  // Read: Get all contacts - Updated to use backend API
   static Future<List<ContactModelBackend>> getAllContacts({bool forceRefresh = false}) async {
     try {
       // Check cache first
@@ -179,17 +177,16 @@ class ContactModelBackend {
       final response = await _apiService.get(ApiConfig.contactsEndpoint);
 
       if (response['success']) {
-        // Handle different possible response structures
+        // Backend wraps contacts in data.contacts array
         List<dynamic> contactsData;
 
-        if (response['data'] is List) {
-          // Direct array response
-          contactsData = response['data'];
-        } else if (response['data'] is Map && response['data']['contacts'] != null) {
-          // Nested in 'contacts' key
+        if (response['data'] != null && response['data']['contacts'] is List) {
           contactsData = response['data']['contacts'];
+        } else if (response['data'] is List) {
+          // Fallback: direct array
+          contactsData = response['data'];
         } else {
-          // Fallback to empty array
+          // No contacts found
           contactsData = [];
         }
 
@@ -214,7 +211,7 @@ class ContactModelBackend {
     }
   }
 
-  // Read: Get contact by ID - Client-side lookup from cached data
+  // Read: Get contact by ID - Updated to use backend API
   static Future<ContactModelBackend?> getContactById(String id) async {
     try {
       AppLogger.info('Looking up contact by ID: $id', tag: 'CONTACT');
@@ -233,14 +230,26 @@ class ContactModelBackend {
         }
       }
 
-      // Refresh all contacts and try again
-      final contacts = await getAllContacts(forceRefresh: true);
-      try {
-        final contact = contacts.firstWhere((contact) => contact.id == id);
-        AppLogger.info('Found contact $id after refresh', tag: 'CONTACT');
+      // Call backend API for specific contact
+      final response = await _apiService.get(ApiConfig.getContactEndpoint(id));
+
+      if (response['success'] && response['data'] != null) {
+        final contact = ContactModelBackend.fromJson(response['data']);
+        AppLogger.info('Found contact $id from API', tag: 'CONTACT');
+
+        // Update cache with this contact
+        if (_cachedContacts != null) {
+          final index = _cachedContacts!.indexWhere((c) => c.id == id);
+          if (index >= 0) {
+            _cachedContacts![index] = contact;
+          } else {
+            _cachedContacts!.add(contact);
+          }
+        }
+
         return contact;
-      } catch (e) {
-        AppLogger.warning('Contact $id not found even after refresh', tag: 'CONTACT');
+      } else {
+        AppLogger.warning('Contact $id not found via API', tag: 'CONTACT');
         return null;
       }
     } catch (e) {
@@ -250,7 +259,7 @@ class ContactModelBackend {
   }
 
   // =============================================
-  // CLIENT-SIDE SEARCH - Since API search unclear
+  // CLIENT-SIDE SEARCH - Since backend search not detailed in docs
   // =============================================
 
   // Search: Find contacts by name - Client-side filtering
@@ -282,19 +291,59 @@ class ContactModelBackend {
   }
 
   // =============================================
-  // REMOVED/SIMPLIFIED METHODS
+  // UPDATE & DELETE METHODS - Updated for backend API
   // =============================================
 
-  // NOTE: The following methods have been removed/simplified as they don't exist in the API docs:
-  // - updateContact() - No update endpoint mentioned in API docs
-  // - deleteContact() - Delete endpoint mentioned but may not be implemented
-  // - clearAllContacts() - No clear endpoint in API docs
+  // Update: Modify contact - Added based on backend docs
+  static Future<Map<String, dynamic>> updateContact(String id, ContactModelBackend contact) async {
+    try {
+      AppLogger.dataOperation('UPDATE', 'Contact', id: id);
 
-  // Delete: Remove contact - Keep but mark as potentially unsupported
+      // Validate before sending
+      final nameError = validateFullName(contact.fullName);
+      final phoneError = validatePhoneNumber(contact.phoneNumber);
+
+      if (nameError != null || phoneError != null) {
+        AppLogger.validation('Contact', 'Validation failed');
+        return {
+          'success': false,
+          'message': 'Validation failed',
+          'errors': {
+            if (nameError != null) 'name': nameError,
+            if (phoneError != null) 'phone': phoneError,
+          }
+        };
+      }
+
+      AppLogger.apiRequest('PUT', ApiConfig.updateContactEndpoint(id), data: contact.toJson());
+
+      final response = await _apiService.put(
+        ApiConfig.updateContactEndpoint(id),
+        contact.toJson(),
+      );
+
+      if (response['success']) {
+        clearCache(); // Clear cache to force refresh
+        AppLogger.dataOperation('UPDATE', 'Contact', id: id, success: true);
+      } else {
+        AppLogger.dataOperation('UPDATE', 'Contact', id: id, success: false);
+      }
+
+      return response;
+    } catch (e) {
+      AppLogger.error('Update contact error', tag: 'CONTACT', error: e);
+      AppLogger.dataOperation('UPDATE', 'Contact', id: id, success: false);
+      return {
+        'success': false,
+        'message': 'Failed to update contact: $e',
+      };
+    }
+  }
+
+  // Delete: Remove contact - Updated for backend API
   static Future<Map<String, dynamic>> deleteContact(String id) async {
     try {
       AppLogger.dataOperation('DELETE', 'Contact', id: id);
-      AppLogger.warning('Attempting to delete contact - endpoint may not be implemented', tag: 'CONTACT');
 
       final response = await _apiService.delete('${ApiConfig.deleteContactEndpoint}/$id');
 
