@@ -46,7 +46,6 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     });
 
     try {
-      // Use the updated API method
       final debts = await DebtRecordModelBackend.getDebtsByContactId(widget.contact.id);
 
       double myTotal = 0.0;
@@ -112,11 +111,52 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     });
   }
 
+  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
+    AppLogger.userAction('Mark debt as paid attempt', context: {
+      'debtId': debt.recordId,
+      'amount': debt.debtAmount,
+    });
+
+    try {
+      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+
+      if (result['success'] == true) {
+        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);
+        _loadContactDebts(); // Refresh the debts list
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Debt marked as paid successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to mark debt as paid'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Mark debt as paid error', tag: 'CONTACT_DETAIL', error: e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final financialColors = DebtThemeUtils.getFinancialColors(context);
-    final isDarkMode = DebtThemeUtils.isDark(context);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
@@ -157,7 +197,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Contact Header (removed email field as backend doesn't support it)
+              // Contact Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -401,8 +441,8 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
   }
 
   Widget _buildDebtCard(DebtRecordModelBackend debt, ThemeData theme, FinancialColors financialColors) {
-    final isOverdue = debt.isOverdue;
-    final daysDifference = debt.dueDate.difference(DateTime.now()).inDays;
+    final isOverdue = debt.isOverdue; // Now uses calculated overdue logic
+    final daysDifference = debt.dueDate.difference(DateTime.now()).inDays; // Uses calculated due date
     final debtColor = debt.isMyDebt ? financialColors.debt! : financialColors.credit!;
     final debtBackgroundColor = debt.isMyDebt ? financialColors.debtBackground! : financialColors.creditBackground!;
 
@@ -525,7 +565,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
                   ),
                 ),
 
-                // Due Date (calculated)
+                // Due Date (calculated - 30 days from creation)
                 Expanded(
                   child: _buildDateInfo(
                     icon: isOverdue ? Icons.warning : Icons.schedule,
@@ -564,7 +604,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
 
             const SizedBox(height: 16),
 
-            // Mark as Paid Button (using backend API)
+            // Mark as Paid Button (now working with backend API)
             if (!debt.isPaidBack)
               SizedBox(
                 width: double.infinity,
@@ -588,45 +628,44 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     );
   }
 
-  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
-    AppLogger.userAction('Mark debt as paid attempt', context: {
-      'debtId': debt.recordId,
-      'amount': debt.debtAmount,
-    });
-
-    try {
-      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
-
-      if (result['success'] == true) {
-        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);
-        _loadContactDebts(); // Refresh the debts list
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Debt marked as paid successfully!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Failed to mark debt as paid'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      AppLogger.error('Mark debt as paid error', tag: 'CONTACT_DETAIL', error: e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
+  Widget _buildDateInfo({
+    required IconData icon,
+    required String label,
+    required String date,
+    required ThemeData theme,
+    bool isOverdue = false,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 14,
+          color: isOverdue ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
         ),
-      );
-    }
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                date,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isOverdue ? theme.colorScheme.error : theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

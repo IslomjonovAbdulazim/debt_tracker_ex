@@ -48,7 +48,6 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     AppLogger.info('Loading debts data', tag: 'DEBTS');
 
     try {
-      // Use the updated client-side filtering methods
       final results = await Future.wait([
         DebtRecordModelBackend.getMyDebts(),
         DebtRecordModelBackend.getTheirDebts(),
@@ -89,8 +88,47 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     }
   }
 
-  // NOTE: Removed _markDebtAsPaid method since markAsPaidBack API doesn't exist
-  // This functionality would need to be implemented differently or the API would need to support it
+  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
+    AppLogger.userAction('Mark debt as paid attempt', context: {
+      'debtId': debt.recordId,
+      'amount': debt.debtAmount,
+    });
+
+    try {
+      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+
+      if (result['success'] == true) {
+        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);
+        _loadDebts(); // Refresh all debt lists
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Debt marked as paid successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to mark debt as paid'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Mark debt as paid error', tag: 'DEBTS', error: e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -321,8 +359,8 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildDebtCard(DebtRecordModelBackend debt, ThemeData theme, FinancialColors financialColors) {
-    final isOverdue = debt.isOverdue;
-    final daysDifference = debt.dueDate.difference(DateTime.now()).inDays;
+    final isOverdue = debt.isOverdue; // Uses calculated overdue logic
+    final daysDifference = debt.dueDate.difference(DateTime.now()).inDays; // Uses calculated due date
     final debtColor = debt.isMyDebt ? financialColors.debt! : financialColors.credit!;
     final debtBackgroundColor = debt.isMyDebt ? financialColors.debtBackground! : financialColors.creditBackground!;
 
@@ -401,7 +439,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\${debt.debtAmount.toStringAsFixed(2)}',
+                      '\$${debt.debtAmount.toStringAsFixed(2)}',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: debtColor,
@@ -476,7 +514,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                   ),
                 ),
 
-                // Due Date
+                // Due Date (calculated - 30 days from creation)
                 Expanded(
                   child: _buildDateInfo(
                     icon: isOverdue ? Icons.warning : Icons.schedule,
@@ -513,41 +551,24 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
               ],
             ),
 
-            // NOTE: Removed "Mark as Paid" button since the API doesn't support this functionality
-            // This would need to be implemented differently or the API would need to support debt updates
-
             const SizedBox(height: 16),
 
-            // Info message about payment functionality
+            // Mark as Paid Button (now working with backend API)
             if (!debt.isPaidBack)
-              Container(
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(0.3),
+                child: ElevatedButton.icon(
+                  onPressed: () => _markDebtAsPaid(debt),
+                  icon: const Icon(Icons.check_circle_outline, size: 20),
+                  label: const Text('Mark as Paid'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    foregroundColor: theme.colorScheme.onPrimaryContainer,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Mark as paid functionality will be available when the API supports debt updates',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
           ],

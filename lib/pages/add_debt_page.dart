@@ -61,7 +61,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
     try {
       final double amount = double.parse(_amountController.text);
 
-      // Create debt record without due date (backend doesn't support it)
+      // Create debt record - backend will set creation date and ID
       final newDebt = DebtRecordModelBackend(
         recordId: '', // Will be set by API
         contactId: widget.contact.id,
@@ -73,18 +73,18 @@ class _AddDebtPageState extends State<AddDebtPage> {
         isPaidBack: false,
       );
 
-      final success = await DebtRecordModelBackend.createDebtRecord(newDebt);
+      final result = await DebtRecordModelBackend.createDebtRecord(newDebt);
 
       stopwatch.stop();
       AppLogger.performance('Debt creation', stopwatch.elapsed, data: {
-        'success': success,
+        'success': result['success'],
         'amount': amount,
         'isMyDebt': widget.isMyDebt,
       });
 
       if (!mounted) return;
 
-      if (success) {
+      if (result['success'] == true) {
         AppLogger.dataOperation('CREATE', 'Debt', success: true, data: {
           'contactId': widget.contact.id,
           'amount': amount,
@@ -95,7 +95,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Debt record added successfully!'),
+            content: Text(result['message'] ?? 'Debt record added successfully!'),
             backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
           ),
@@ -105,7 +105,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to add debt record'),
+            content: Text(result['message'] ?? 'Failed to add debt record'),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -135,7 +135,6 @@ class _AddDebtPageState extends State<AddDebtPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final financialColors = DebtThemeUtils.getFinancialColors(context);
-    final isDarkMode = DebtThemeUtils.isDark(context);
 
     final String pageTitle = widget.isMyDebt ? 'I Owe Them' : 'They Owe Me';
     final Color themeColor = widget.isMyDebt ? financialColors.debt! : financialColors.credit!;
@@ -291,7 +290,6 @@ class _AddDebtPageState extends State<AddDebtPage> {
                         return null;
                       },
                       onChanged: (value) {
-                        // Auto-format the input (optional)
                         if (value.isNotEmpty) {
                           AppLogger.userAction('Amount input changed', context: {'length': value.length});
                         }
@@ -366,7 +364,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
               const SizedBox(height: 32),
 
-              // Info Card (replacing due date section)
+              // Info Card (explaining backend behavior)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: DebtThemeUtils.getFinancialCardDecoration(context),
@@ -378,7 +376,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
                         Icon(Icons.info_outline, color: theme.colorScheme.primary, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Note',
+                          'How It Works',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: theme.colorScheme.onSurface,
@@ -388,7 +386,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'This debt will be recorded immediately. You can mark it as paid later from your debt overview.',
+                      'This debt will be recorded immediately and considered "due" after 30 days from creation. You can mark it as paid later from your debt overview or contact details.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         height: 1.5,
