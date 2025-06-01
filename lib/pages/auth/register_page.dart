@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
 import 'verify_email_page.dart';
@@ -17,11 +16,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final phoneMaskFormatter = MaskTextInputFormatter(
-    mask: '+998 ## ### ## ##',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -32,7 +26,6 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -46,7 +39,6 @@ class _RegisterPageState extends State<RegisterPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
       );
 
       if (!mounted) return;
@@ -185,36 +177,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       }
                       if (!value.contains('@') || !value.contains('.')) {
                         return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Phone Number Field
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    textInputAction: TextInputAction.next,
-                    inputFormatters: [phoneMaskFormatter],
-                    onTapOutside: (event) {
-                      FocusScope.of(context).unfocus();
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      hintText: '+998 90 123 45 67',
-                      prefixIcon: Icon(
-                        Icons.phone_outlined,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your phone number';
-                      }
-                      final digitsOnly = value.replaceAll(RegExp(r'[^\d]'), '');
-                      if (digitsOnly.length < 12) {
-                        return 'Please enter a valid Uzbekistan phone number';
                       }
                       return null;
                     },

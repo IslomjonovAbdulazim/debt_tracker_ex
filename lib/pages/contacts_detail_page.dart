@@ -92,9 +92,6 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     }
   }
 
-  // NOTE: Removed _markDebtAsPaid method since markAsPaidBack API doesn't exist
-  // This functionality would need to be implemented differently or the API would need to support it
-
   void _navigateToAddDebt(bool isMyDebt) {
     AppLogger.userAction('Navigate to add debt', context: {
       'contactId': widget.contact.id,
@@ -160,7 +157,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Contact Header
+              // Contact Header (removed email field as backend doesn't support it)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -198,15 +195,6 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (widget.contact.hasEmail) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.contact.email!,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -358,7 +346,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
             children: [
               Icon(icon, color: color, size: 20),
               Text(
-                '\$${amount.toStringAsFixed(2)}',
+                '\${amount.toStringAsFixed(2)}',
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: color,
                   fontWeight: FontWeight.bold,
@@ -462,7 +450,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${debt.debtAmount.toStringAsFixed(2)}',
+                      '\${debt.debtAmount.toStringAsFixed(2)}',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: debtColor,
@@ -537,7 +525,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
                   ),
                 ),
 
-                // Due Date
+                // Due Date (calculated)
                 Expanded(
                   child: _buildDateInfo(
                     icon: isOverdue ? Icons.warning : Icons.schedule,
@@ -574,41 +562,24 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
               ],
             ),
 
-            // NOTE: Removed "Mark as Paid" button since the API doesn't support this functionality
-            // This would need to be implemented differently or the API would need to support debt updates
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 12),
-
-            // Info message about payment functionality
+            // Mark as Paid Button (using backend API)
             if (!debt.isPaidBack)
-              Container(
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(0.3),
+                child: ElevatedButton.icon(
+                  onPressed: () => _markDebtAsPaid(debt),
+                  icon: const Icon(Icons.check_circle_outline, size: 20),
+                  label: const Text('Mark as Paid'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    foregroundColor: theme.colorScheme.onPrimaryContainer,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Mark as paid functionality will be available when the API supports debt updates',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
           ],
@@ -617,44 +588,45 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     );
   }
 
-  Widget _buildDateInfo({
-    required IconData icon,
-    required String label,
-    required String date,
-    required ThemeData theme,
-    bool isOverdue = false,
-  }) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 14,
-          color: isOverdue ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                date,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isOverdue ? theme.colorScheme.error : theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+  Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
+    AppLogger.userAction('Mark debt as paid attempt', context: {
+      'debtId': debt.recordId,
+      'amount': debt.debtAmount,
+    });
+
+    try {
+      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+
+      if (result['success'] == true) {
+        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);
+        _loadContactDebts(); // Refresh the debts list
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Debt marked as paid successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
           ),
+        );
+      } else {
+        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to mark debt as paid'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Mark debt as paid error', tag: 'CONTACT_DETAIL', error: e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
         ),
-      ],
-    );
+      );
+    }
   }
 }

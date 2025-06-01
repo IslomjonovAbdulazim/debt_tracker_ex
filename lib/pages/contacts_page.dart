@@ -565,7 +565,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
               const SizedBox(width: 16),
 
-              // Contact Info
+              // Contact Info (removed email as backend doesn't support it)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,15 +584,6 @@ class _ContactsPageState extends State<ContactsPage> {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (contact.hasEmail) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        contact.email!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

@@ -22,7 +22,7 @@ class ApiConfig {
   static const String getCurrentUserEndpoint = '/auth/me';
   static const String forgotPasswordEndpoint = '/auth/forgot-password';
   static const String resetPasswordEndpoint = '/auth/reset-password';
-  static const String resendCodeEndpoint = '/auth/resend-code';
+  static const String resendCodeEndpoint = '/auth/resend-code'; // Added resend code endpoint
   static const String logoutEndpoint = '/auth/logout'; // Not in docs but kept for compatibility
 
   // Contact endpoints - Updated to match backend docs
@@ -39,12 +39,7 @@ class ApiConfig {
   static String getDebtEndpoint(String id) => '/debts/$id';
   static String updateDebtEndpoint(String id) => '/debts/$id';
   static String deleteDebtEndpoint(String id) => '/debts/$id';
-  static String markDebtPaidEndpoint(String id) => '/debts/$id/pay';
-
-  // Removed non-existent endpoints from original config
-  // These were not mentioned in the backend docs:
-  // - contactDebtsEndpoint
-  // - verifyResetCodeEndpoint
+  static String markDebtPaidEndpoint(String id) => '/debts/$id/pay'; // PATCH endpoint
 
   // Health check endpoints
   static const String healthEndpoint = '/health';

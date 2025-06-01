@@ -10,13 +10,11 @@ class AuthModelBackend {
   final String id;
   final String email;
   final String fullName;
-  final String phoneNumber;
 
   AuthModelBackend({
     required this.id,
     required this.email,
     required this.fullName,
-    required this.phoneNumber,
   });
 
   // =============================================
@@ -29,7 +27,6 @@ class AuthModelBackend {
       'id': id,
       'email': email,
       'fullname': fullName, // Backend uses 'fullname'
-      'phone_number': phoneNumber,
     };
   }
 
@@ -39,7 +36,6 @@ class AuthModelBackend {
       id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
       fullName: json['fullname'] ?? '', // Backend returns 'fullname'
-      phoneNumber: json['phone_number'] ?? '', // Backend might not return this
     );
   }
 
@@ -47,12 +43,11 @@ class AuthModelBackend {
   // AUTHENTICATION METHODS - Updated to match backend API
   // =============================================
 
-  // Register new user - Updated to match backend API
+  // Register new user - Updated to match backend API (removed phone)
   static Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String fullName,
-    required String phoneNumber,
   }) async {
     try {
       AppLogger.authEvent('Registration attempt', data: {'email': email, 'fullname': fullName});
@@ -61,7 +56,6 @@ class AuthModelBackend {
         'email': email.toLowerCase().trim(),
         'password': password,
         'fullname': fullName.trim(), // Backend expects 'fullname'
-        // Note: phone_number not mentioned in backend docs for registration
       };
 
       AppLogger.apiRequest('POST', ApiConfig.registerEndpoint, data: {
@@ -103,7 +97,7 @@ class AuthModelBackend {
     }
   }
 
-  // Login user - Updated to match backend API
+  // Login user - Updated to match backend API response structure
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -326,6 +320,45 @@ class AuthModelBackend {
       return {
         'success': false,
         'message': 'Verification failed: $e',
+      };
+    }
+  }
+
+  // Resend verification code - Added based on backend API
+  static Future<Map<String, dynamic>> resendCode({
+    required String email,
+  }) async {
+    try {
+      AppLogger.authEvent('Resend code request', data: {'email': email});
+
+      final requestData = {
+        'email': email.toLowerCase().trim(),
+      };
+
+      AppLogger.apiRequest('POST', ApiConfig.resendCodeEndpoint, data: requestData);
+
+      final response = await _apiService.post(
+        ApiConfig.resendCodeEndpoint,
+        requestData,
+        requiresAuth: false,
+      );
+
+      if (response['success']) {
+        AppLogger.authEvent('Resend code successful', data: {'email': email});
+      } else {
+        AppLogger.authEvent('Resend code failed', data: {'message': response['message']});
+      }
+
+      return {
+        'success': response['success'],
+        'message': response['message'] ?? (response['success'] ? 'Verification code sent' : 'Failed to send code'),
+        'verificationCode': '123456', // Demo code for testing
+      };
+    } catch (e) {
+      AppLogger.error('Resend code error', tag: 'AUTH', error: e);
+      return {
+        'success': false,
+        'message': 'Failed to resend code: $e',
       };
     }
   }

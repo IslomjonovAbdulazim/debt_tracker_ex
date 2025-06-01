@@ -178,6 +178,44 @@ class ApiService {
     }
   }
 
+  // 🔄 PATCH request (for mark as paid functionality)
+  Future<Map<String, dynamic>> patch(
+      String endpoint,
+      Map<String, dynamic> data, {
+        bool requiresAuth = true
+      }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
+      Map<String, String> headers = ApiConfig.defaultHeaders;
+
+      if (requiresAuth) {
+        final token = await _getAuthToken();
+        if (token != null) {
+          headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          AppLogger.warning('No auth token available for authenticated request', tag: 'API');
+        }
+      }
+
+      AppLogger.apiRequest('PATCH', url.toString(), data: data);
+
+      final response = await _makeRequest(() =>
+          http.patch(
+            url,
+            headers: headers,
+            body: jsonEncode(data),
+          ).timeout(ApiConfig.requestTimeout)
+      );
+
+      final result = _handleResponse(response);
+      AppLogger.apiResponse('PATCH', url.toString(), response.statusCode, response: result);
+      return result;
+    } catch (e, stackTrace) {
+      AppLogger.apiError('PATCH', endpoint, e, stackTrace: stackTrace);
+      return _handleError(e);
+    }
+  }
+
   // 🗑️ DELETE request
   Future<Map<String, dynamic>> delete(String endpoint, {bool requiresAuth = true}) async {
     try {
@@ -208,7 +246,7 @@ class ApiService {
     }
   }
 
-  // 🔧 Response handler
+  // 🔧 Response handler - Updated to handle new backend response structure
   Map<String, dynamic> _handleResponse(http.Response response) {
     final Map<String, dynamic> responseData;
 
@@ -224,10 +262,11 @@ class ApiService {
       };
     }
 
-    // Save token if present
-    if (responseData.containsKey('token') ||
-        (responseData.containsKey('data') && responseData['data']?.containsKey('token'))) {
-      final token = responseData['token'] ?? responseData['data']['token'];
+    // Save token if present in the new structure
+    if (responseData.containsKey('data') &&
+        responseData['data'] is Map &&
+        responseData['data'].containsKey('access_token')) {
+      final token = responseData['data']['access_token'];
       if (token != null) {
         AppLogger.info('New token received in response', tag: 'AUTH');
         _saveAuthToken(token);
@@ -239,9 +278,12 @@ class ApiService {
       case 200:
       case 201:
         AppLogger.info('Successful response: ${response.statusCode}', tag: 'API');
+        // Backend always returns success field, so use that
         return {
-          'success': true,
-          ...responseData,
+          'success': responseData['success'] ?? true,
+          'message': responseData['message'] ?? 'Success',
+          'data': responseData['data'],
+          'timestamp': responseData['timestamp'],
         };
       case 401:
         AppLogger.warning('Unauthorized response - removing token', tag: 'API');
@@ -257,7 +299,7 @@ class ApiService {
         return {
           'success': false,
           'message': responseData['message'] ?? 'Validation error',
-          'errors': responseData['errors'] ?? {},
+          'errors': responseData['errors'] ?? [],
           'statusCode': response.statusCode,
         };
       case 429:

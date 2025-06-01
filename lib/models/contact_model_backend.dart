@@ -10,14 +10,12 @@ class ContactModelBackend {
   final String id;
   final String fullName;
   final String phoneNumber;
-  final String? email;
   final DateTime createdDate;
 
   ContactModelBackend({
     required this.id,
     required this.fullName,
     required this.phoneNumber,
-    this.email,
     required this.createdDate,
   });
 
@@ -26,20 +24,28 @@ class ContactModelBackend {
   // =============================================
 
   static String? validateFullName(String? name) {
-    if (name == null || name.trim().isEmpty) {
+    if (name == null || name
+        .trim()
+        .isEmpty) {
       return 'Full name is required';
     }
-    if (name.trim().length < 2) {
+    if (name
+        .trim()
+        .length < 2) {
       return 'Name must be at least 2 characters';
     }
-    if (name.trim().length > 50) {
+    if (name
+        .trim()
+        .length > 50) {
       return 'Name cannot exceed 50 characters';
     }
     return null;
   }
 
   static String? validatePhoneNumber(String? phone) {
-    if (phone == null || phone.trim().isEmpty) {
+    if (phone == null || phone
+        .trim()
+        .isEmpty) {
       return 'Phone number is required';
     }
 
@@ -54,25 +60,16 @@ class ContactModelBackend {
     return null;
   }
 
-  static String? validateEmail(String? email) {
-    if (email == null || email.trim().isEmpty) {
-      return null;
-    }
-
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(email.trim())) {
-      return 'Please enter a valid email address';
-    }
-    return null;
-  }
-
   // =============================================
   // CACHE MANAGEMENT - Keep existing cache logic
   // =============================================
 
   static bool get _isCacheValid {
     if (_cachedContacts == null || _lastCacheUpdate == null) return false;
-    return DateTime.now().difference(_lastCacheUpdate!).inMinutes < 5;
+    return DateTime
+        .now()
+        .difference(_lastCacheUpdate!)
+        .inMinutes < 5;
   }
 
   static void _updateCache(List<ContactModelBackend> contacts) {
@@ -95,7 +92,6 @@ class ContactModelBackend {
     return {
       'name': fullName.trim(), // Backend expects 'name'
       'phone': phoneNumber.trim(), // Backend expects 'phone'
-      // Note: email not mentioned in backend contact creation docs
     };
   }
 
@@ -105,7 +101,6 @@ class ContactModelBackend {
       id: json['id']?.toString() ?? '',
       fullName: json['name'] ?? '', // Backend returns 'name'
       phoneNumber: json['phone'] ?? '', // Backend returns 'phone'
-      email: json['email'], // May not be returned by backend
       createdDate: DateTime.parse(
           json['created_at'] ?? DateTime.now().toIso8601String()
       ),
@@ -117,7 +112,8 @@ class ContactModelBackend {
   // =============================================
 
   // Create: Save new contact - Updated to use backend API
-  static Future<Map<String, dynamic>> createContact(ContactModelBackend contact) async {
+  static Future<Map<String, dynamic>> createContact(
+      ContactModelBackend contact) async {
     try {
       AppLogger.dataOperation('CREATE', 'Contact', id: contact.id);
 
@@ -137,7 +133,8 @@ class ContactModelBackend {
         };
       }
 
-      AppLogger.apiRequest('POST', ApiConfig.createContactEndpoint, data: contact.toJson());
+      AppLogger.apiRequest(
+          'POST', ApiConfig.createContactEndpoint, data: contact.toJson());
 
       final response = await _apiService.post(
         ApiConfig.createContactEndpoint,
@@ -163,7 +160,8 @@ class ContactModelBackend {
   }
 
   // Read: Get all contacts - Updated to use backend API
-  static Future<List<ContactModelBackend>> getAllContacts({bool forceRefresh = false}) async {
+  static Future<List<ContactModelBackend>> getAllContacts(
+      {bool forceRefresh = false}) async {
     try {
       // Check cache first
       if (!forceRefresh && _isCacheValid) {
@@ -195,14 +193,17 @@ class ContactModelBackend {
             .toList();
 
         // Sort contacts alphabetically
-        contacts.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+        contacts.sort((a, b) =>
+            a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
 
         _updateCache(contacts);
-        AppLogger.info('Retrieved and cached ${contacts.length} contacts', tag: 'CONTACT');
+        AppLogger.info(
+            'Retrieved and cached ${contacts.length} contacts', tag: 'CONTACT');
         return contacts;
       }
 
-      AppLogger.warning('Failed to get contacts: ${response['message']}', tag: 'CONTACT');
+      AppLogger.warning(
+          'Failed to get contacts: ${response['message']}', tag: 'CONTACT');
       return _cachedContacts ?? [];
     } catch (e) {
       AppLogger.error('Get all contacts error', tag: 'CONTACT', error: e);
@@ -219,7 +220,8 @@ class ContactModelBackend {
       // Try cache first
       if (_isCacheValid) {
         try {
-          final cached = _cachedContacts?.firstWhere((contact) => contact.id == id);
+          final cached = _cachedContacts?.firstWhere((contact) =>
+          contact.id == id);
           if (cached != null) {
             AppLogger.cache('HIT', 'Contact-$id', hit: true);
             return cached;
@@ -263,9 +265,12 @@ class ContactModelBackend {
   // =============================================
 
   // Search: Find contacts by name - Client-side filtering
-  static Future<List<ContactModelBackend>> searchContactsByName(String searchQuery) async {
+  static Future<List<ContactModelBackend>> searchContactsByName(
+      String searchQuery) async {
     try {
-      if (searchQuery.trim().isEmpty) {
+      if (searchQuery
+          .trim()
+          .isEmpty) {
         return getAllContacts();
       }
 
@@ -278,11 +283,12 @@ class ContactModelBackend {
       final query = searchQuery.toLowerCase().trim();
       final filteredContacts = allContacts.where((contact) =>
       contact.fullName.toLowerCase().contains(query) ||
-          contact.phoneNumber.contains(query) ||
-          (contact.email?.toLowerCase().contains(query) ?? false)
+          contact.phoneNumber.contains(query)
       ).toList();
 
-      AppLogger.info('Found ${filteredContacts.length} contacts matching "$searchQuery"', tag: 'CONTACT');
+      AppLogger.info(
+          'Found ${filteredContacts.length} contacts matching "$searchQuery"',
+          tag: 'CONTACT');
       return filteredContacts;
     } catch (e) {
       AppLogger.error('Search contacts error', tag: 'CONTACT', error: e);
@@ -295,7 +301,8 @@ class ContactModelBackend {
   // =============================================
 
   // Update: Modify contact - Added based on backend docs
-  static Future<Map<String, dynamic>> updateContact(String id, ContactModelBackend contact) async {
+  static Future<Map<String, dynamic>> updateContact(String id,
+      ContactModelBackend contact) async {
     try {
       AppLogger.dataOperation('UPDATE', 'Contact', id: id);
 
@@ -315,7 +322,8 @@ class ContactModelBackend {
         };
       }
 
-      AppLogger.apiRequest('PUT', ApiConfig.updateContactEndpoint(id), data: contact.toJson());
+      AppLogger.apiRequest(
+          'PUT', ApiConfig.updateContactEndpoint(id), data: contact.toJson());
 
       final response = await _apiService.put(
         ApiConfig.updateContactEndpoint(id),
@@ -345,7 +353,8 @@ class ContactModelBackend {
     try {
       AppLogger.dataOperation('DELETE', 'Contact', id: id);
 
-      final response = await _apiService.delete('${ApiConfig.deleteContactEndpoint}/$id');
+      final response = await _apiService.delete(
+          '${ApiConfig.deleteContactEndpoint}/$id');
 
       if (response['success']) {
         clearCache(); // Clear cache to force refresh
@@ -382,13 +391,15 @@ class ContactModelBackend {
     final cleaned = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
     if (cleaned.startsWith('+998')) {
       if (cleaned.length == 13) {
-        return '+998 ${cleaned.substring(4, 6)} ${cleaned.substring(6, 9)} ${cleaned.substring(9, 11)} ${cleaned.substring(11)}';
+        return '+998 ${cleaned.substring(4, 6)} ${cleaned.substring(
+            6, 9)} ${cleaned.substring(9, 11)} ${cleaned.substring(11)}';
       }
     }
     return phoneNumber;
   }
 
-  bool get hasEmail => email != null && email!.trim().isNotEmpty;
+  bool get hasEmail =>
+      false; // Removed email support as backend doesn't handle it
 
   @override
   bool operator ==(Object other) =>
@@ -402,6 +413,6 @@ class ContactModelBackend {
 
   @override
   String toString() {
-    return 'ContactModelBackend{id: $id, fullName: $fullName, phoneNumber: $phoneNumber, hasEmail: $hasEmail}';
+    return 'ContactModelBackend{id: $id, fullName: $fullName, phoneNumber: $phoneNumber}';
   }
 }

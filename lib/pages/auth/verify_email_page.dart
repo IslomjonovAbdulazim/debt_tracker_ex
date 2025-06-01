@@ -101,21 +101,37 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.register(
+      // Use the proper resend code endpoint
+      final result = await AuthModelBackend.resendCode(
         email: widget.email,
-        password: 'temp',
-        fullName: 'temp',
-        phoneNumber: '+998000000000',
       );
 
       if (!mounted) return;
 
-      if (result['verificationCode'] != null) {
+      if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('New Demo Code: ${result['verificationCode']}'),
-            duration: const Duration(seconds: 10),
+            content: Text('New verification code sent to ${widget.email}'),
             backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+
+        // Show demo code if available
+        if (result['verificationCode'] != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Demo Code: ${result['verificationCode']}'),
+              duration: const Duration(seconds: 10),
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to resend code'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -270,7 +286,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         child: Text(
                           'Resend',
                           style: TextStyle(
-                            color: theme.colorScheme.primary,
+                            color: _isLoading
+                                ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
+                                : theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

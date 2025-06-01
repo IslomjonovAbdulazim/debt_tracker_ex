@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/contact_model_backend.dart';
 import '../models/debt_record_model_backend.dart';
 import '../config/app_theme.dart';
@@ -23,7 +22,6 @@ class _AddDebtPageState extends State<AddDebtPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  DateTime _selectedDueDate = DateTime.now().add(const Duration(days: 30));
   bool _isLoading = false;
 
   @override
@@ -42,43 +40,6 @@ class _AddDebtPageState extends State<AddDebtPage> {
     _descriptionController.dispose();
     AppLogger.lifecycle('AddDebtPage disposed');
     super.dispose();
-  }
-
-  Future<void> _selectDueDate() async {
-    AppLogger.userAction('Date picker opened');
-
-    final theme = Theme.of(context);
-    final financialColors = DebtThemeUtils.getFinancialColors(context);
-    final themeColor = widget.isMyDebt ? financialColors.debt! : financialColors.credit!;
-
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDueDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // 2 years
-      builder: (context, child) {
-        return Theme(
-          data: theme.copyWith(
-            colorScheme: theme.colorScheme.copyWith(
-              primary: themeColor,
-              onPrimary: DebtThemeUtils.getContrastingTextColor(themeColor),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null && picked != _selectedDueDate) {
-      setState(() {
-        _selectedDueDate = picked;
-      });
-
-      AppLogger.userAction('Due date selected', context: {
-        'selectedDate': picked.toIso8601String(),
-        'daysFromNow': picked.difference(DateTime.now()).inDays,
-      });
-    }
   }
 
   Future<void> _saveDebt() async {
@@ -100,7 +61,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
     try {
       final double amount = double.parse(_amountController.text);
 
-      // Create debt record using the updated model structure
+      // Create debt record without due date (backend doesn't support it)
       final newDebt = DebtRecordModelBackend(
         recordId: '', // Will be set by API
         contactId: widget.contact.id,
@@ -108,7 +69,6 @@ class _AddDebtPageState extends State<AddDebtPage> {
         debtAmount: amount,
         debtDescription: _descriptionController.text.trim(),
         createdDate: DateTime.now(),
-        dueDate: _selectedDueDate,
         isMyDebt: widget.isMyDebt,
         isPaidBack: false,
       );
@@ -404,60 +364,34 @@ class _AddDebtPageState extends State<AddDebtPage> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
 
-              // Due Date Field
+              // Info Card (replacing due date section)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: DebtThemeUtils.getFinancialCardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Due Date',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: theme.colorScheme.primary, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Note',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
-                    InkWell(
-                      onTap: _selectDueDate,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: theme.colorScheme.outline),
-                          borderRadius: BorderRadius.circular(12),
-                          color: theme.colorScheme.surface,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_today, color: themeColor, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                DateFormat('MMMM dd, yyyy').format(_selectedDueDate),
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: theme.colorScheme.onSurfaceVariant,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      'Due in ${_selectedDueDate.difference(DateTime.now()).inDays} days',
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      'This debt will be recorded immediately. You can mark it as paid later from your debt overview.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.5,
                       ),
                     ),
                   ],
