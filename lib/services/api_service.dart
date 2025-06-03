@@ -1,3 +1,4 @@
+// lib/services/api_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -10,7 +11,10 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  // 🔐 Token management
+  // =============================================
+  // TOKEN MANAGEMENT - FIXED for JWT
+  // =============================================
+
   Future<String?> _getAuthToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -43,7 +47,10 @@ class ApiService {
     }
   }
 
-  // 🔄 Retry mechanism for network failures
+  // =============================================
+  // RETRY MECHANISM
+  // =============================================
+
   Future<http.Response> _makeRequest(Future<http.Response> Function() request, {int maxRetries = 3}) async {
     int attempts = 0;
     while (attempts < maxRetries) {
@@ -63,7 +70,7 @@ class ApiService {
           rethrow;
         }
 
-        // Wait before retry (exponential backoff)
+        // Exponential backoff
         final delay = Duration(seconds: attempts * 2);
         AppLogger.info('Retrying in ${delay.inSeconds} seconds...', tag: 'API');
         await Future.delayed(delay);
@@ -72,7 +79,10 @@ class ApiService {
     throw Exception('Max retries exceeded');
   }
 
-  // 📥 GET request
+  // =============================================
+  // HTTP METHODS - FIXED for backend
+  // =============================================
+
   Future<Map<String, dynamic>> get(String endpoint, {bool requiresAuth = true}) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
@@ -82,12 +92,19 @@ class ApiService {
         final token = await _getAuthToken();
         if (token != null) {
           headers = ApiConfig.getAuthHeaders(token);
+          AppLogger.debug('Using auth token for request', tag: 'API');
         } else {
           AppLogger.warning('No auth token available for authenticated request', tag: 'API');
+          return {
+            'success': false,
+            'message': 'No authentication token available',
+            'needsLogin': true,
+          };
         }
       }
 
       AppLogger.apiRequest('GET', url.toString());
+      AppLogger.debug('Request headers: $headers', tag: 'API');
 
       final response = await _makeRequest(() =>
           http.get(url, headers: headers).timeout(ApiConfig.requestTimeout)
@@ -102,12 +119,7 @@ class ApiService {
     }
   }
 
-  // 📤 POST request
-  Future<Map<String, dynamic>> post(
-      String endpoint,
-      Map<String, dynamic> data, {
-        bool requiresAuth = true
-      }) async {
+  Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data, {bool requiresAuth = true}) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
       Map<String, String> headers = ApiConfig.defaultHeaders;
@@ -116,12 +128,19 @@ class ApiService {
         final token = await _getAuthToken();
         if (token != null) {
           headers = ApiConfig.getAuthHeaders(token);
+          AppLogger.debug('Using auth token for POST request', tag: 'API');
         } else {
           AppLogger.warning('No auth token available for authenticated request', tag: 'API');
+          return {
+            'success': false,
+            'message': 'No authentication token available',
+            'needsLogin': true,
+          };
         }
       }
 
       AppLogger.apiRequest('POST', url.toString(), data: data);
+      AppLogger.debug('Request headers: $headers', tag: 'API');
 
       final response = await _makeRequest(() =>
           http.post(
@@ -140,12 +159,7 @@ class ApiService {
     }
   }
 
-  // 🔄 PUT request
-  Future<Map<String, dynamic>> put(
-      String endpoint,
-      Map<String, dynamic> data, {
-        bool requiresAuth = true
-      }) async {
+  Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data, {bool requiresAuth = true}) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
       Map<String, String> headers = ApiConfig.defaultHeaders;
@@ -178,12 +192,8 @@ class ApiService {
     }
   }
 
-  // 🔄 PATCH request (for mark as paid functionality)
-  Future<Map<String, dynamic>> patch(
-      String endpoint,
-      Map<String, dynamic> data, {
-        bool requiresAuth = true
-      }) async {
+  // FIXED: Added PATCH method for mark debt as paid
+  Future<Map<String, dynamic>> patch(String endpoint, Map<String, dynamic> data, {bool requiresAuth = true}) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
       Map<String, String> headers = ApiConfig.defaultHeaders;
@@ -216,7 +226,6 @@ class ApiService {
     }
   }
 
-  // 🗑️ DELETE request
   Future<Map<String, dynamic>> delete(String endpoint, {bool requiresAuth = true}) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
@@ -246,7 +255,10 @@ class ApiService {
     }
   }
 
-  // 🔧 Response handler - Updated to handle new backend response structure
+  // =============================================
+  // RESPONSE HANDLER - FIXED for backend format
+  // =============================================
+
   Map<String, dynamic> _handleResponse(http.Response response) {
     final Map<String, dynamic> responseData;
 
@@ -262,7 +274,7 @@ class ApiService {
       };
     }
 
-    // Save token if present in the new structure
+    // FIXED: Save token if present in backend structure
     if (responseData.containsKey('data') &&
         responseData['data'] is Map &&
         responseData['data'].containsKey('access_token')) {
@@ -273,27 +285,54 @@ class ApiService {
       }
     }
 
-    // Handle different status codes
+    // FIXED: Handle backend status codes properly
     switch (response.statusCode) {
       case 200:
       case 201:
         AppLogger.info('Successful response: ${response.statusCode}', tag: 'API');
-        // Backend always returns success field, so use that
         return {
           'success': responseData['success'] ?? true,
           'message': responseData['message'] ?? 'Success',
           'data': responseData['data'],
-          'timestamp': responseData['timestamp'],
+          'statusCode': response.statusCode,
         };
+
+      case 400:
+        AppLogger.warning('Bad request: ${response.statusCode}', tag: 'API');
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Bad request',
+          'errors': responseData['errors'] ?? [],
+          'statusCode': response.statusCode,
+        };
+
       case 401:
         AppLogger.warning('Unauthorized response - removing token', tag: 'API');
-        _removeAuthToken(); // Remove invalid token
+        _removeAuthToken();
         return {
           'success': false,
           'message': responseData['message'] ?? 'Session expired. Please login again.',
           'statusCode': response.statusCode,
           'needsLogin': true,
         };
+
+      case 403:
+        AppLogger.warning('Forbidden response', tag: 'API');
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Access forbidden',
+          'statusCode': response.statusCode,
+          'needsVerification': responseData['message']?.toLowerCase().contains('not verified') ?? false,
+        };
+
+      case 404:
+        AppLogger.warning('Not found: ${response.statusCode}', tag: 'API');
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Resource not found',
+          'statusCode': response.statusCode,
+        };
+
       case 422:
         AppLogger.warning('Validation error response', tag: 'API');
         return {
@@ -302,6 +341,7 @@ class ApiService {
           'errors': responseData['errors'] ?? [],
           'statusCode': response.statusCode,
         };
+
       case 429:
         AppLogger.warning('Rate limit exceeded', tag: 'API');
         return {
@@ -309,6 +349,7 @@ class ApiService {
           'message': 'Too many requests. Please try again later.',
           'statusCode': response.statusCode,
         };
+
       case 500:
         AppLogger.error('Server error response', tag: 'API');
         return {
@@ -316,6 +357,7 @@ class ApiService {
           'message': 'Server error. Please try again later.',
           'statusCode': response.statusCode,
         };
+
       default:
         AppLogger.warning('Unhandled status code: ${response.statusCode}', tag: 'API');
         return {
@@ -326,7 +368,10 @@ class ApiService {
     }
   }
 
-  // ❌ Error handler
+  // =============================================
+  // ERROR HANDLER
+  // =============================================
+
   Map<String, dynamic> _handleError(dynamic error) {
     AppLogger.error('API Error occurred', tag: 'API', error: error);
 
@@ -363,24 +408,59 @@ class ApiService {
     };
   }
 
-  // 🚪 Logout helper
+  // =============================================
+  // UTILITY METHODS
+  // =============================================
+
   Future<void> logout() async {
     AppLogger.authEvent('User logout initiated');
     await _removeAuthToken();
     AppLogger.authEvent('User logout completed');
   }
 
-  // 🔍 Connection test
   Future<bool> testConnection() async {
     try {
       AppLogger.info('Testing API connection...', tag: 'API');
+
+      // FIXED: Use backend health endpoint
       final response = await get('/health', requiresAuth: false);
-      final isConnected = response['success'] == true;
+      final isConnected = response['success'] == true || response['status'] == 'healthy';
+
       AppLogger.network(isConnected ? 'API connection successful' : 'API connection failed');
       return isConnected;
     } catch (e) {
       AppLogger.network('API connection test failed');
       return false;
+    }
+  }
+
+  // DEBUG: Check current token status
+  Future<Map<String, dynamic>> checkTokenStatus() async {
+    try {
+      final token = await _getAuthToken();
+      if (token == null) {
+        return {
+          'hasToken': false,
+          'message': 'No token found',
+        };
+      }
+
+      AppLogger.debug('Current token: ${token.substring(0, 20)}...', tag: 'AUTH');
+
+      // Test token with /auth/me endpoint
+      final response = await get('/auth/me', requiresAuth: true);
+
+      return {
+        'hasToken': true,
+        'tokenValid': response['success'] == true,
+        'tokenPreview': '${token.substring(0, 20)}...',
+        'testResponse': response,
+      };
+    } catch (e) {
+      return {
+        'hasToken': false,
+        'error': e.toString(),
+      };
     }
   }
 }

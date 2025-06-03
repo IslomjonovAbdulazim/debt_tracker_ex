@@ -1,3 +1,4 @@
+// lib/pages/auth/reset_password_page.dart
 import 'package:flutter/material.dart';
 import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
@@ -119,9 +120,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
+      // FIXED: Pass the code to resetPassword method
+      final code = _getCompleteCode();
       final result = await AuthModelBackend.resetPassword(
         email: widget.email,
         newPassword: _newPasswordController.text,
+        code: code.isNotEmpty ? code : widget.resetCode, // Use entered code or demo code
       );
 
       if (!mounted) return;

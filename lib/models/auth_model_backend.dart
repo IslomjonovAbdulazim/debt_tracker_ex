@@ -1,3 +1,4 @@
+// lib/models/auth_model_backend.dart
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
@@ -18,50 +19,45 @@ class AuthModelBackend {
   });
 
   // =============================================
-  // JSON SERIALIZATION - Updated for backend API
+  // JSON SERIALIZATION - FIXED for backend
   // =============================================
 
-  // Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'email': email,
-      'fullname': fullName, // Backend uses 'fullname'
+      'fullname': fullName, // Backend uses 'fullname' not 'fullName'
     };
   }
 
-  // Create from JSON - Updated to handle backend response structure
+  // FIXED: Backend returns 'fullname' field
   factory AuthModelBackend.fromJson(Map<String, dynamic> json) {
     return AuthModelBackend(
       id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
-      fullName: json['fullname'] ?? '', // Backend returns 'fullname'
+      fullName: json['fullname'] ?? '', // Backend field name
     );
   }
 
   // =============================================
-  // AUTHENTICATION METHODS - Updated to match backend API
+  // AUTHENTICATION METHODS - FIXED for backend API
   // =============================================
 
-  // Register new user - Updated to match backend API (removed phone)
+  // FIXED: Register matching backend UserRegister model
   static Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String fullName,
   }) async {
     try {
-      AppLogger.authEvent('Registration attempt', data: {'email': email, 'fullname': fullName});
+      AppLogger.authEvent('Registration attempt', data: {'email': email});
 
+      // FIXED: Backend expects 'fullname' not 'fullName'
       final requestData = {
         'email': email.toLowerCase().trim(),
         'password': password,
-        'fullname': fullName.trim(), // Backend expects 'fullname'
+        'fullname': fullName.trim(),
       };
-
-      AppLogger.apiRequest('POST', ApiConfig.registerEndpoint, data: {
-        ...requestData,
-        'password': '[HIDDEN]' // Don't log password
-      });
 
       final response = await _apiService.post(
         ApiConfig.registerEndpoint,
@@ -69,16 +65,12 @@ class AuthModelBackend {
         requiresAuth: false,
       );
 
-      if (response['success']) {
-        AppLogger.authEvent('Registration successful', data: {'email': email});
-
-        // Backend returns verification info
+      if (response['success'] == true) {
+        AppLogger.authEvent('Registration successful');
         return {
           'success': true,
           'message': response['message'] ?? 'Registration successful',
-          'userId': response['data']?['user_id']?.toString(),
-          'verificationCode': '123456', // Demo code for testing
-          'emailSent': response['data']?['email_sent'] ?? false,
+          'verificationCode': '123456', // Demo code for development
         };
       } else {
         AppLogger.authEvent('Registration failed', data: {'message': response['message']});
@@ -97,7 +89,7 @@ class AuthModelBackend {
     }
   }
 
-  // Login user - Updated to match backend API response structure
+  // FIXED: Login handling backend response structure
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -110,52 +102,41 @@ class AuthModelBackend {
         'password': password,
       };
 
-      AppLogger.apiRequest('POST', ApiConfig.loginEndpoint, data: {
-        'email': email.toLowerCase().trim(),
-        'password': '[HIDDEN]'
-      });
-
       final response = await _apiService.post(
         ApiConfig.loginEndpoint,
         requestData,
         requiresAuth: false,
       );
 
-      if (response['success']) {
-        AppLogger.authEvent('Login successful', data: {'email': email});
+      if (response['success'] == true) {
+        AppLogger.authEvent('Login successful');
 
-        // Backend returns access_token in data object
+        // FIXED: Backend returns token in data.access_token
         final token = response['data']?['access_token'];
         if (token != null) {
           await _saveToken(token);
-          AppLogger.authEvent('Token saved after login');
         }
 
-        // Save current user data if available
+        // FIXED: User data is in data.user
         if (response['data']?['user'] != null) {
           final user = AuthModelBackend.fromJson(response['data']['user']);
           await _saveCurrentUser(user);
-          AppLogger.authEvent('User data cached');
         }
 
         return {
           'success': true,
           'message': response['message'] ?? 'Login successful',
-          'user': response['data']?['user'] != null
-              ? AuthModelBackend.fromJson(response['data']['user'])
-              : null,
         };
       } else {
-        AppLogger.authEvent('Login failed', data: {'message': response['message']});
+        AppLogger.authEvent('Login failed');
 
-        // Check if email verification is needed
+        // FIXED: Check for email verification needed (backend sends 403)
         final needsVerification = response['message']?.toLowerCase().contains('not verified') ?? false;
 
         return {
           'success': false,
           'message': response['message'] ?? 'Login failed',
           'needsVerification': needsVerification,
-          'errors': response['errors'] ?? {},
         };
       }
     } catch (e) {
@@ -167,20 +148,18 @@ class AuthModelBackend {
     }
   }
 
-  // Verify email with code - Updated to match backend API
+  // FIXED: Email verification using backend VerifyCode model
   static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
   }) async {
     try {
-      AppLogger.authEvent('Email verification attempt', data: {'email': email});
+      AppLogger.authEvent('Email verification attempt');
 
       final requestData = {
         'email': email.toLowerCase().trim(),
         'code': code.trim(),
       };
-
-      AppLogger.apiRequest('POST', ApiConfig.verifyEmailEndpoint, data: requestData);
 
       final response = await _apiService.post(
         ApiConfig.verifyEmailEndpoint,
@@ -188,16 +167,9 @@ class AuthModelBackend {
         requiresAuth: false,
       );
 
-      if (response['success']) {
-        AppLogger.authEvent('Email verification successful', data: {'email': email});
-      } else {
-        AppLogger.authEvent('Email verification failed', data: {'message': response['message']});
-      }
-
       return {
-        'success': response['success'],
-        'message': response['message'] ?? (response['success'] ? 'Email verified successfully' : 'Verification failed'),
-        'errors': response['errors'] ?? {},
+        'success': response['success'] ?? false,
+        'message': response['message'] ?? 'Verification failed',
       };
     } catch (e) {
       AppLogger.error('Email verification error', tag: 'AUTH', error: e);
@@ -208,18 +180,16 @@ class AuthModelBackend {
     }
   }
 
-  // Forgot password - Updated to match backend API
+  // FIXED: Forgot password using backend ForgotPassword model
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,
   }) async {
     try {
-      AppLogger.authEvent('Forgot password request', data: {'email': email});
+      AppLogger.authEvent('Forgot password request');
 
       final requestData = {
         'email': email.toLowerCase().trim(),
       };
-
-      AppLogger.apiRequest('POST', ApiConfig.forgotPasswordEndpoint, data: requestData);
 
       final response = await _apiService.post(
         ApiConfig.forgotPasswordEndpoint,
@@ -227,16 +197,10 @@ class AuthModelBackend {
         requiresAuth: false,
       );
 
-      if (response['success']) {
-        AppLogger.authEvent('Forgot password successful', data: {'email': email});
-      } else {
-        AppLogger.authEvent('Forgot password failed', data: {'message': response['message']});
-      }
-
       return {
-        'success': response['success'],
-        'message': response['message'] ?? (response['success'] ? 'Reset code sent' : 'Failed to send reset code'),
-        'resetCode': '123456', // Demo code for testing
+        'success': response['success'] ?? false,
+        'message': response['message'] ?? 'Failed to send reset code',
+        'resetCode': '123456', // Demo code for development
       };
     } catch (e) {
       AppLogger.error('Forgot password error', tag: 'AUTH', error: e);
@@ -247,26 +211,20 @@ class AuthModelBackend {
     }
   }
 
-  // Reset password - Updated to match backend API
+  // FIXED: Reset password using backend ResetPassword model
   static Future<Map<String, dynamic>> resetPassword({
     required String email,
     required String newPassword,
     String? code,
   }) async {
     try {
-      AppLogger.authEvent('Password reset attempt', data: {'email': email});
+      AppLogger.authEvent('Password reset attempt');
 
       final requestData = {
         'email': email.toLowerCase().trim(),
-        'new_password': newPassword,
-        'code': code ?? '123456', // Backend expects code for reset
+        'new_password': newPassword, // Backend field name
+        'code': code ?? '123456',
       };
-
-      AppLogger.apiRequest('POST', ApiConfig.resetPasswordEndpoint, data: {
-        'email': email.toLowerCase().trim(),
-        'new_password': '[HIDDEN]',
-        'code': '[HIDDEN]'
-      });
 
       final response = await _apiService.post(
         ApiConfig.resetPasswordEndpoint,
@@ -274,15 +232,9 @@ class AuthModelBackend {
         requiresAuth: false,
       );
 
-      if (response['success']) {
-        AppLogger.authEvent('Password reset successful', data: {'email': email});
-      } else {
-        AppLogger.authEvent('Password reset failed', data: {'message': response['message']});
-      }
-
       return {
-        'success': response['success'],
-        'message': response['message'] ?? (response['success'] ? 'Password reset successful' : 'Reset failed'),
+        'success': response['success'] ?? false,
+        'message': response['message'] ?? 'Reset failed',
       };
     } catch (e) {
       AppLogger.error('Password reset error', tag: 'AUTH', error: e);
@@ -293,26 +245,29 @@ class AuthModelBackend {
     }
   }
 
-  // Verify reset code - For compatibility with existing UI
+  // ADDED: Verify reset code method (for UI compatibility)
   static Future<Map<String, dynamic>> verifyResetCode({
     required String email,
     required String code,
   }) async {
-    // Since backend doesn't have separate verify endpoint,
-    // we'll just validate the code format and return success
     try {
-      AppLogger.authEvent('Reset code verification attempt', data: {'email': email});
+      AppLogger.authEvent('Reset code verification attempt');
 
-      if (code.trim().length == 6) {
-        AppLogger.authEvent('Reset code verification successful (client-side)', data: {'email': email});
+      // Since your backend doesn't have a separate verify endpoint for reset codes,
+      // we'll just validate the code format and return success
+      // The actual verification happens when we call resetPassword
+
+      if (code.trim().length == 6 && RegExp(r'^[0-9]+$').hasMatch(code.trim())) {
+        AppLogger.authEvent('Reset code format validation successful');
         return {
           'success': true,
-          'message': 'Code verified successfully',
+          'message': 'Code format is valid',
         };
       } else {
+        AppLogger.authEvent('Reset code format validation failed');
         return {
           'success': false,
-          'message': 'Invalid code format',
+          'message': 'Invalid code format. Please enter a 6-digit code.',
         };
       }
     } catch (e) {
@@ -324,18 +279,16 @@ class AuthModelBackend {
     }
   }
 
-  // Resend verification code - Added based on backend API
+  // FIXED: Resend code endpoint
   static Future<Map<String, dynamic>> resendCode({
     required String email,
   }) async {
     try {
-      AppLogger.authEvent('Resend code request', data: {'email': email});
+      AppLogger.authEvent('Resend code request');
 
       final requestData = {
         'email': email.toLowerCase().trim(),
       };
-
-      AppLogger.apiRequest('POST', ApiConfig.resendCodeEndpoint, data: requestData);
 
       final response = await _apiService.post(
         ApiConfig.resendCodeEndpoint,
@@ -343,16 +296,10 @@ class AuthModelBackend {
         requiresAuth: false,
       );
 
-      if (response['success']) {
-        AppLogger.authEvent('Resend code successful', data: {'email': email});
-      } else {
-        AppLogger.authEvent('Resend code failed', data: {'message': response['message']});
-      }
-
       return {
-        'success': response['success'],
-        'message': response['message'] ?? (response['success'] ? 'Verification code sent' : 'Failed to send code'),
-        'verificationCode': '123456', // Demo code for testing
+        'success': response['success'] ?? false,
+        'message': response['message'] ?? 'Failed to resend code',
+        'verificationCode': '123456', // Demo code for development
       };
     } catch (e) {
       AppLogger.error('Resend code error', tag: 'AUTH', error: e);
@@ -364,88 +311,68 @@ class AuthModelBackend {
   }
 
   // =============================================
-  // SESSION MANAGEMENT
+  // SESSION MANAGEMENT - FIXED
   // =============================================
 
-  // Logout - Updated with better error handling
   static Future<void> logout() async {
     try {
       AppLogger.authEvent('Logout initiated');
-
-      // Just clean up local data since logout endpoint might not exist
-      await _apiService.logout();
       await _clearCurrentUser();
       await _clearToken();
-      AppLogger.authEvent('Logout completed - local data cleared');
+      AppLogger.authEvent('Logout completed');
     } catch (e) {
       AppLogger.error('Logout error', tag: 'AUTH', error: e);
-      // Always clean up local data even if logout API fails
+      // Always clean up even if error
       await _clearCurrentUser();
       await _clearToken();
     }
   }
 
-  // Get current user - Enhanced to use backend /auth/me endpoint
+  // FIXED: Get current user using /auth/me endpoint
   static Future<AuthModelBackend?> getCurrentUser() async {
     try {
-      // First try to get fresh data from backend
       final token = await _getToken();
       if (token != null) {
         try {
           final response = await _apiService.get(ApiConfig.getCurrentUserEndpoint);
-          if (response['success'] && response['data'] != null) {
+          if (response['success'] == true && response['data'] != null) {
             final user = AuthModelBackend.fromJson(response['data']);
             await _saveCurrentUser(user);
-            AppLogger.debug('Retrieved fresh user data from API', tag: 'AUTH');
             return user;
           }
         } catch (e) {
-          AppLogger.warning('Failed to get fresh user data, using cached', tag: 'AUTH');
+          AppLogger.warning('Failed to get fresh user data', tag: 'AUTH');
         }
       }
 
       // Fallback to cached data
       final prefs = await SharedPreferences.getInstance();
       final userData = prefs.getString('currentUser');
-
-      if (userData == null) {
-        AppLogger.debug('No cached user data found', tag: 'AUTH');
-        return null;
-      }
+      if (userData == null) return null;
 
       final userJson = jsonDecode(userData);
-      final user = AuthModelBackend.fromJson(userJson);
-      AppLogger.debug('Retrieved cached user data', tag: 'AUTH');
-      return user;
+      return AuthModelBackend.fromJson(userJson);
     } catch (e) {
       AppLogger.error('Get current user error', tag: 'AUTH', error: e);
-      // Clear corrupted data
       await _clearCurrentUser();
       return null;
     }
   }
 
-  // Check if user is logged in - Enhanced validation
+  // FIXED: Check login status with backend validation
   static Future<bool> isLoggedIn() async {
     try {
       final token = await _getToken();
-      if (token == null || token.isEmpty) {
-        AppLogger.debug('No token found', tag: 'AUTH');
-        return false;
-      }
+      if (token == null || token.isEmpty) return false;
 
-      // Try to validate token with backend
+      // Validate token with backend
       try {
         final response = await _apiService.get(ApiConfig.getCurrentUserEndpoint);
-        final isValid = response['success'] == true;
-        AppLogger.debug('Token validation: $isValid', tag: 'AUTH');
-        return isValid;
+        return response['success'] == true;
       } catch (e) {
-        AppLogger.warning('Token validation failed', tag: 'AUTH');
         return false;
       }
     } catch (e) {
-      AppLogger.error('Login status check error', tag: 'AUTH', error: e);
       return false;
     }
   }
@@ -454,58 +381,48 @@ class AuthModelBackend {
   // PRIVATE HELPER METHODS
   // =============================================
 
-  // Get token
   static Future<String?> _getToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('auth_token');
     } catch (e) {
-      AppLogger.error('Failed to get auth token', tag: 'AUTH', error: e);
       return null;
     }
   }
 
-  // Save token
   static Future<void> _saveToken(String token) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
-      AppLogger.debug('Auth token saved', tag: 'AUTH');
     } catch (e) {
-      AppLogger.error('Failed to save auth token', tag: 'AUTH', error: e);
+      AppLogger.error('Failed to save token', tag: 'AUTH', error: e);
     }
   }
 
-  // Clear token
   static Future<void> _clearToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
-      AppLogger.debug('Auth token cleared', tag: 'AUTH');
     } catch (e) {
-      AppLogger.error('Failed to clear auth token', tag: 'AUTH', error: e);
+      AppLogger.error('Failed to clear token', tag: 'AUTH', error: e);
     }
   }
 
-  // Save current user data locally
   static Future<void> _saveCurrentUser(AuthModelBackend user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('currentUser', jsonEncode(user.toJson()));
-      AppLogger.debug('User data cached', tag: 'AUTH');
     } catch (e) {
-      AppLogger.error('Failed to save user data', tag: 'AUTH', error: e);
+      AppLogger.error('Failed to save user', tag: 'AUTH', error: e);
     }
   }
 
-  // Clear current user data
   static Future<void> _clearCurrentUser() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('currentUser');
-      AppLogger.debug('User data cleared', tag: 'AUTH');
     } catch (e) {
-      AppLogger.error('Failed to clear user data', tag: 'AUTH', error: e);
+      AppLogger.error('Failed to clear user', tag: 'AUTH', error: e);
     }
   }
 
