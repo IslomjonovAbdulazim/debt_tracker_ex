@@ -162,6 +162,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
       backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: Text(widget.contact.fullName),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -197,12 +198,22 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Contact Header
+              // Contact Header Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
-                decoration: DebtThemeUtils.getFinancialCardDecoration(context),
                 margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: Column(
                   children: [
                     CircleAvatar(
@@ -281,7 +292,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
                         label: const Text('I Owe Them'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: financialColors.debt,
-                          foregroundColor: DebtThemeUtils.getContrastingTextColor(financialColors.debt!),
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -297,7 +308,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
                         label: const Text('They Owe Me'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: financialColors.credit,
-                          foregroundColor: DebtThemeUtils.getContrastingTextColor(financialColors.credit!),
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -378,7 +389,21 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
   Widget _buildSummaryCard(String title, double amount, Color color, IconData icon, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: DebtThemeUtils.getFinancialCardDecoration(context, borderRadius: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Row(
@@ -386,7 +411,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
             children: [
               Icon(icon, color: color, size: 20),
               Text(
-                '\${amount.toStringAsFixed(2)}',
+                '\$${amount.toStringAsFixed(2)}',
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: color,
                   fontWeight: FontWeight.bold,
@@ -441,189 +466,195 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
   }
 
   Widget _buildDebtCard(DebtRecordModelBackend debt, ThemeData theme, FinancialColors financialColors) {
-    final isOverdue = debt.isOverdue; // Now uses calculated overdue logic
-    final daysDifference = debt.dueDate.difference(DateTime.now()).inDays; // Uses calculated due date
+    final isOverdue = debt.isOverdue;
+    final daysDifference = debt.dueDate.difference(DateTime.now()).inDays;
     final debtColor = debt.isMyDebt ? financialColors.debt! : financialColors.credit!;
     final debtBackgroundColor = debt.isMyDebt ? financialColors.debtBackground! : financialColors.creditBackground!;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
+        border: Border.all(
           color: theme.colorScheme.outline.withOpacity(0.2),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      color: theme.colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Row
-            Row(
-              children: [
-                // Type Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: debtBackgroundColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: debtColor.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    debt.isMyDebt ? 'I Owe' : 'They Owe',
-                    style: TextStyle(
-                      color: debtColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              // Type Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: debtBackgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: debtColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  debt.isMyDebt ? 'I Owe' : 'They Owe',
+                  style: TextStyle(
+                    color: debtColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
 
-                const Spacer(),
+              const Spacer(),
 
-                // Amount and Status
-                Column(
+              // Amount and Status
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '\$${debt.debtAmount.toStringAsFixed(2)}',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: debtColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (debt.isPaidBack)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'PAID',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  else if (isOverdue)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'OVERDUE',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Description
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              debt.debtDescription,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Date Information
+          Row(
+            children: [
+              // Created Date
+              Expanded(
+                child: _buildDateInfo(
+                  icon: Icons.calendar_today,
+                  label: 'Created',
+                  date: DateFormat('MMM dd').format(debt.createdDate),
+                  theme: theme,
+                ),
+              ),
+
+              // Due Date
+              Expanded(
+                child: _buildDateInfo(
+                  icon: isOverdue ? Icons.warning : Icons.schedule,
+                  label: 'Due Date',
+                  date: DateFormat('MMM dd').format(debt.dueDate),
+                  theme: theme,
+                  isOverdue: isOverdue,
+                ),
+              ),
+
+              // Days Info
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\${debt.debtAmount.toStringAsFixed(2)}',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: debtColor,
+                      'Due in',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    if (debt.isPaidBack)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'PAID',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    else if (isOverdue)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'OVERDUE',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isOverdue
+                          ? '${daysDifference.abs()} ${daysDifference.abs() == 1 ? 'day' : 'days'} ago'
+                          : '${daysDifference} ${daysDifference == 1 ? 'day' : 'days'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            // Description
-            Container(
+          // Mark as Paid Button
+          if (!debt.isPaidBack)
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                debt.debtDescription,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
+              child: ElevatedButton.icon(
+                onPressed: () => _markDebtAsPaid(debt),
+                icon: const Icon(Icons.check_circle_outline, size: 20),
+                label: const Text('Mark as Paid'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  foregroundColor: theme.colorScheme.onPrimaryContainer,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // Date Information
-            Row(
-              children: [
-                // Created Date
-                Expanded(
-                  child: _buildDateInfo(
-                    icon: Icons.calendar_today,
-                    label: 'Created',
-                    date: DateFormat('MMM dd').format(debt.createdDate),
-                    theme: theme,
-                  ),
-                ),
-
-                // Due Date (calculated - 30 days from creation)
-                Expanded(
-                  child: _buildDateInfo(
-                    icon: isOverdue ? Icons.warning : Icons.schedule,
-                    label: 'Due Date',
-                    date: DateFormat('MMM dd').format(debt.dueDate),
-                    theme: theme,
-                    isOverdue: isOverdue,
-                  ),
-                ),
-
-                // Days Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        isOverdue ? 'Overdue by' : 'Due in',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${daysDifference.abs()} ${daysDifference.abs() == 1 ? 'day' : 'days'}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Mark as Paid Button (now working with backend API)
-            if (!debt.isPaidBack)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _markDebtAsPaid(debt),
-                  icon: const Icon(Icons.check_circle_outline, size: 20),
-                  label: const Text('Mark as Paid'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    foregroundColor: theme.colorScheme.onPrimaryContainer,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
