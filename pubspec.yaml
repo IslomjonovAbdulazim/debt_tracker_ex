@@ -13,7 +13,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   get: ^4.7.2
-  device_preview: ^1.2.0
+#  device_preview: ^1.2.0
   shared_preferences: ^2.5.3
   mask_text_input_formatter: ^2.9.0
   http: ^1.4.0  # Updated version

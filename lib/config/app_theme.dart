@@ -99,7 +99,7 @@ class AppTheme {
     ),
 
     // Card theme - Clean financial cards
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: LightColors.cardBackground,
       elevation: 2,
       shadowColor: LightColors.cardShadow,
@@ -251,7 +251,7 @@ class AppTheme {
     ),
 
     // Dialog theme
-    dialogTheme: DialogTheme(
+    dialogTheme: DialogThemeData(
       backgroundColor: LightColors.surface,
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -284,7 +284,7 @@ class AppTheme {
     ),
 
     // Tab bar theme
-    tabBarTheme: TabBarTheme(
+    tabBarTheme: TabBarThemeData(
       labelColor: AppColors.primary,
       unselectedLabelColor: LightColors.textTertiary,
       labelStyle: AppTextStyles.tabLabel.copyWith(fontWeight: FontWeight.w600),
@@ -405,7 +405,7 @@ class AppTheme {
     ),
 
     // Card theme
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: DarkColors.cardBackground,
       elevation: 4,
       shadowColor: DarkColors.cardShadow,

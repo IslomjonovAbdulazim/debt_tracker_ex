@@ -1,30 +1,30 @@
 // lib/config/api_config.dart
 class ApiConfig {
   // FIXED: Base URL configuration - Use your actual backend URL
-  static const String baseUrl = 'https://islomjonovabdulazim-debt-tracker-backend-519e.twc1.net';
+  static const String baseUrl = 'http://10.10.2.188:8000';
 
-  // FIXED: Authentication endpoints matching backend routes
-  static const String registerEndpoint = '/auth/register';
-  static const String verifyEmailEndpoint = '/auth/verify-email';
-  static const String loginEndpoint = '/auth/login';
-  static const String getCurrentUserEndpoint = '/auth/me';
-  static const String forgotPasswordEndpoint = '/auth/forgot-password';
-  static const String resetPasswordEndpoint = '/auth/reset-password';
-  static const String resendCodeEndpoint = '/auth/resend-code';
+  // FIXED: Authentication endpoints matching backend routes exactly
+  static const String registerEndpoint = '/api/auth/register';
+  static const String verifyEmailEndpoint = '/api/auth/verify-email';
+  static const String loginEndpoint = '/api/auth/login';
+  static const String getCurrentUserEndpoint = '/api/auth/me';
+  static const String forgotPasswordEndpoint = '/api/auth/forgot-password';
+  static const String resetPasswordEndpoint = '/api/auth/reset-password';
+  static const String resendCodeEndpoint = '/api/auth/resend';
 
-  // FIXED: Contact endpoints with trailing slashes to avoid redirects
-  static const String contactsEndpoint = '/contacts/';
-  static String getContactEndpoint(String id) => '/contacts/$id/';
-  static String updateContactEndpoint(String id) => '/contacts/$id/';
-  static String deleteContactEndpoint(String id) => '/contacts/$id/';
+  // FIXED: Contact endpoints with exact API paths
+  static const String contactsEndpoint = '/api/contact-create';
+  static String getContactEndpoint(String id) => '/api/contact-update/$id';
+  static String updateContactEndpoint(String id) => '/api/contact-update/$id';
+  static String deleteContactEndpoint(String id) => '/api/contact-delete/$id';
 
-  // FIXED: Debt endpoints with trailing slashes to avoid redirects
-  static const String debtsEndpoint = '/debts/';
-  static const String homeOverviewEndpoint = '/debts/overview/';
-  static String getDebtEndpoint(String id) => '/debts/$id/';
-  static String updateDebtEndpoint(String id) => '/debts/$id/';
-  static String deleteDebtEndpoint(String id) => '/debts/$id/';
-  static String markDebtPaidEndpoint(String id) => '/debts/$id/pay/';
+  // FIXED: Debt endpoints (assuming similar pattern)
+  static const String debtsEndpoint = '/api/debts/';
+  static const String homeOverviewEndpoint = '/api/debts/overview/';
+  static String getDebtEndpoint(String id) => '/api/debts/$id/';
+  static String updateDebtEndpoint(String id) => '/api/debts/$id/';
+  static String deleteDebtEndpoint(String id) => '/api/debts/$id/';
+  static String markDebtPaidEndpoint(String id) => '/api/debts/$id/pay/';
 
   // Request configuration
   static const Duration requestTimeout = Duration(seconds: 30);
@@ -38,7 +38,7 @@ class ApiConfig {
 
   static Map<String, String> getAuthHeaders(String token) => {
     ...defaultHeaders,
-    'Authorization': 'Bearer $token', // FIXED: Proper Bearer token format
+    'Authorization': 'Bearer $token',
   };
 
   // Query parameters helper
