@@ -21,23 +21,23 @@ class ContactModelBackend {
   });
 
   // =============================================
-  // JSON SERIALIZATION - FIXED for backend API
+  // JSON SERIALIZATION - FIXED to match documentation
   // =============================================
 
-  // FIXED: Backend expects 'name' and 'phone' fields
+  // FIXED: Documentation expects 'fullname' and 'phone_number'
   Map<String, dynamic> toJson() {
     return {
-      'name': fullName.trim(),
-      'phone': phoneNumber.trim(),
+      'fullname': fullName.trim(),
+      'phone_number': phoneNumber.trim(),
     };
   }
 
-  // FIXED: Backend returns 'name', 'phone', 'created_at' fields
+  // FIXED: Documentation returns 'fullname' and 'phone_number'
   factory ContactModelBackend.fromJson(Map<String, dynamic> json) {
     return ContactModelBackend(
       id: json['id']?.toString() ?? '',
-      fullName: json['name'] ?? '',
-      phoneNumber: json['phone'] ?? '',
+      fullName: json['fullname'] ?? '',
+      phoneNumber: json['phone_number'] ?? '',
       createdDate: DateTime.parse(
           json['created_at'] ?? DateTime.now().toIso8601String()
       ),
@@ -96,10 +96,10 @@ class ContactModelBackend {
   }
 
   // =============================================
-  // API METHODS - FIXED for backend
+  // API METHODS - FIXED to match documentation
   // =============================================
 
-  // FIXED: Create contact using backend ContactCreate model
+  // FIXED: Use correct endpoint for creating contact
   static Future<Map<String, dynamic>> createContact(ContactModelBackend contact) async {
     try {
       AppLogger.dataOperation('CREATE', 'Contact');
@@ -113,14 +113,14 @@ class ContactModelBackend {
           'success': false,
           'message': 'Validation failed',
           'errors': {
-            if (nameError != null) 'name': nameError,
-            if (phoneError != null) 'phone': phoneError,
+            if (nameError != null) 'fullname': nameError,
+            if (phoneError != null) 'phone_number': phoneError,
           }
         };
       }
 
       final response = await _apiService.post(
-        ApiConfig.contactsEndpoint,
+        ApiConfig.createContactEndpoint, // POST /contact
         contact.toJson(),
       );
 
@@ -139,7 +139,7 @@ class ContactModelBackend {
     }
   }
 
-  // FIXED: Get all contacts with backend response structure
+  // FIXED: Use correct endpoint for getting all contacts
   static Future<List<ContactModelBackend>> getAllContacts({bool forceRefresh = false}) async {
     try {
       if (!forceRefresh && _isCacheValid) {
@@ -149,12 +149,12 @@ class ContactModelBackend {
 
       AppLogger.info('Fetching contacts from API', tag: 'CONTACT');
 
-      final response = await _apiService.get(ApiConfig.contactsEndpoint);
+      final response = await _apiService.get(ApiConfig.contactsEndpoint); // GET /contacts
 
       if (response['success'] == true) {
-        // FIXED: Backend returns data.contacts array
         List<dynamic> contactsData = [];
 
+        // Handle different response structures
         if (response['data'] != null && response['data']['contacts'] is List) {
           contactsData = response['data']['contacts'];
         } else if (response['data'] is List) {
@@ -228,8 +228,8 @@ class ContactModelBackend {
           'success': false,
           'message': 'Validation failed',
           'errors': {
-            if (nameError != null) 'name': nameError,
-            if (phoneError != null) 'phone': phoneError,
+            if (nameError != null) 'fullname': nameError,
+            if (phoneError != null) 'phone_number': phoneError,
           }
         };
       }

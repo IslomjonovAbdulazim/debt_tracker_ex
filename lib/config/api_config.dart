@@ -1,36 +1,45 @@
 // lib/config/api_config.dart
 class ApiConfig {
-  // FIXED: Base URL configuration - Use your actual backend URL
-  static const String baseUrl = 'http://10.10.2.188:8000';
+  // Base URL configuration
+  static const String baseUrl = 'http://10.10.2.210';
 
-  // FIXED: Authentication endpoints matching backend routes exactly
-  static const String registerEndpoint = '/api/auth/register';
-  static const String verifyEmailEndpoint = '/api/auth/verify-email';
-  static const String loginEndpoint = '/api/auth/login';
-  static const String getCurrentUserEndpoint = '/api/auth/me';
-  static const String forgotPasswordEndpoint = '/api/auth/forgot-password';
-  static const String resetPasswordEndpoint = '/api/auth/reset-password';
-  static const String resendCodeEndpoint = '/api/auth/resend';
+  // FIXED: Authentication endpoints matching documentation exactly
+  static const String registerEndpoint = '/register';
+  static const String verifyEmailEndpoint = '/verify-email';
+  static const String loginEndpoint = '/login';
+  static const String forgotPasswordEndpoint = '/forgot-password';
+  static const String resetPasswordEndpoint = '/reset-password';
+  static const String resendCodeEndpoint = '/resend'; // Not in docs, keeping for app functionality
 
-  // FIXED: Contact endpoints with exact API paths
-  static const String contactsEndpoint = '/api/contact-create';
-  static String getContactEndpoint(String id) => '/api/contact-update/$id';
-  static String updateContactEndpoint(String id) => '/api/contact-update/$id';
-  static String deleteContactEndpoint(String id) => '/api/contact-delete/$id';
+  // FIXED: Contact endpoints matching documentation
+  static const String contactsEndpoint = '/contacts'; // GET all contacts
+  static const String createContactEndpoint = '/contact'; // POST create contact
+  static String getContactEndpoint(String id) => '/contact/$id';
+  static String updateContactEndpoint(String id) => '/contact/$id';
+  static String deleteContactEndpoint(String id) => '/contact/$id';
 
-  // FIXED: Debt endpoints (assuming similar pattern)
-  static const String debtsEndpoint = '/api/debts/';
-  static const String homeOverviewEndpoint = '/api/debts/overview/';
-  static String getDebtEndpoint(String id) => '/api/debts/$id/';
-  static String updateDebtEndpoint(String id) => '/api/debts/$id/';
-  static String deleteDebtEndpoint(String id) => '/api/debts/$id/';
-  static String markDebtPaidEndpoint(String id) => '/api/debts/$id/pay/';
+  // FIXED: Contact debt endpoints from documentation
+  static String getContactDebtsEndpoint(String contactId) => '/contact-debts/$contactId';
+  static const String createContactDebtEndpoint = '/contact-debt';
+
+  // FIXED: Home endpoint matching documentation
+  static const String homeOverviewEndpoint = '/home/overview';
+
+  // FIXED: Debt endpoints matching documentation
+  static const String debtsEndpoint = '/debts';
+  static String getDebtEndpoint(String id) => '/debt/$id'; // Assuming pattern
+  static String updateDebtEndpoint(String id) => '/debt/$id'; // Assuming pattern
+  static String deleteDebtEndpoint(String id) => '/debt/$id'; // Assuming pattern
+  static String markDebtPaidEndpoint(String id) => '/debt/$id/pay'; // Assuming pattern
+
+  // User profile endpoint (not in docs but needed for auth check)
+  static const String getCurrentUserEndpoint = '/me'; // Assuming simple path
 
   // Request configuration
   static const Duration requestTimeout = Duration(seconds: 30);
   static const int maxRetries = 3;
 
-  // Headers configuration - FIXED for JWT
+  // Headers configuration
   static Map<String, String> get defaultHeaders => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

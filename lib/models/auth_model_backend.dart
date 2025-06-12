@@ -19,31 +19,31 @@ class AuthModelBackend {
   });
 
   // =============================================
-  // JSON SERIALIZATION - FIXED for backend
+  // JSON SERIALIZATION - FIXED for documentation
   // =============================================
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'email': email,
-      'fullname': fullName, // Backend uses 'fullname' not 'fullName'
+      'fullname': fullName, // Documentation uses 'fullname'
     };
   }
 
-  // FIXED: Backend returns 'fullname' field
+  // FIXED: Documentation returns 'fullname' field
   factory AuthModelBackend.fromJson(Map<String, dynamic> json) {
     return AuthModelBackend(
       id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
-      fullName: json['fullname'] ?? '', // Backend field name
+      fullName: json['fullname'] ?? '', // Documentation field name
     );
   }
 
   // =============================================
-  // AUTHENTICATION METHODS - FIXED for backend API
+  // AUTHENTICATION METHODS - FIXED for documentation endpoints
   // =============================================
 
-  // FIXED: Register matching backend UserRegister model
+  // FIXED: Register using documentation endpoint
   static Future<Map<String, dynamic>> register({
     required String email,
     required String password,
@@ -52,15 +52,15 @@ class AuthModelBackend {
     try {
       AppLogger.authEvent('Registration attempt', data: {'email': email});
 
-      // FIXED: Backend expects 'fullname' not 'fullName'
+      // FIXED: Documentation expects these exact field names
       final requestData = {
         'email': email.toLowerCase().trim(),
         'password': password,
-        'fullname': fullName.trim(),
+        'fullname': fullName.trim(), // Documentation field name
       };
 
       final response = await _apiService.post(
-        ApiConfig.registerEndpoint,
+        ApiConfig.registerEndpoint, // POST /register
         requestData,
         requiresAuth: false,
       );
@@ -89,7 +89,7 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Login handling backend response structure
+  // FIXED: Login using documentation endpoint
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -103,7 +103,7 @@ class AuthModelBackend {
       };
 
       final response = await _apiService.post(
-        ApiConfig.loginEndpoint,
+        ApiConfig.loginEndpoint, // POST /login
         requestData,
         requiresAuth: false,
       );
@@ -111,13 +111,13 @@ class AuthModelBackend {
       if (response['success'] == true) {
         AppLogger.authEvent('Login successful');
 
-        // FIXED: Backend returns token in data.access_token
+        // Handle token from response
         final token = response['data']?['access_token'];
         if (token != null) {
           await _saveToken(token);
         }
 
-        // FIXED: User data is in data.user
+        // Handle user data from response
         if (response['data']?['user'] != null) {
           final user = AuthModelBackend.fromJson(response['data']['user']);
           await _saveCurrentUser(user);
@@ -130,7 +130,7 @@ class AuthModelBackend {
       } else {
         AppLogger.authEvent('Login failed');
 
-        // FIXED: Check for email verification needed (backend sends 403)
+        // Check for email verification needed
         final needsVerification = response['message']?.toLowerCase().contains('not verified') ?? false;
 
         return {
@@ -148,7 +148,7 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Email verification using backend VerifyCode model
+  // FIXED: Email verification using documentation endpoint
   static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
@@ -162,7 +162,7 @@ class AuthModelBackend {
       };
 
       final response = await _apiService.post(
-        ApiConfig.verifyEmailEndpoint,
+        ApiConfig.verifyEmailEndpoint, // POST /verify-email
         requestData,
         requiresAuth: false,
       );
@@ -180,7 +180,7 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Forgot password using backend ForgotPassword model
+  // FIXED: Forgot password using documentation endpoint
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,
   }) async {
@@ -192,7 +192,7 @@ class AuthModelBackend {
       };
 
       final response = await _apiService.post(
-        ApiConfig.forgotPasswordEndpoint,
+        ApiConfig.forgotPasswordEndpoint, // POST /forgot-password
         requestData,
         requiresAuth: false,
       );
@@ -211,7 +211,7 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Reset password using backend ResetPassword model
+  // FIXED: Reset password using documentation endpoint
   static Future<Map<String, dynamic>> resetPassword({
     required String email,
     required String newPassword,
@@ -227,7 +227,7 @@ class AuthModelBackend {
       };
 
       final response = await _apiService.post(
-        ApiConfig.resetPasswordEndpoint,
+        ApiConfig.resetPasswordEndpoint, // POST /reset-password
         requestData,
         requiresAuth: false,
       );
@@ -245,7 +245,7 @@ class AuthModelBackend {
     }
   }
 
-  // ADDED: Verify reset code method (for UI compatibility)
+  // Verify reset code method (for UI compatibility)
   static Future<Map<String, dynamic>> verifyResetCode({
     required String email,
     required String code,
@@ -253,10 +253,7 @@ class AuthModelBackend {
     try {
       AppLogger.authEvent('Reset code verification attempt');
 
-      // Since your backend doesn't have a separate verify endpoint for reset codes,
-      // we'll just validate the code format and return success
-      // The actual verification happens when we call resetPassword
-
+      // Simple validation since there's no specific endpoint
       if (code.trim().length == 6 && RegExp(r'^[0-9]+$').hasMatch(code.trim())) {
         AppLogger.authEvent('Reset code format validation successful');
         return {
@@ -279,7 +276,7 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Resend code endpoint
+  // FIXED: Resend code endpoint (if available)
   static Future<Map<String, dynamic>> resendCode({
     required String email,
   }) async {
@@ -291,7 +288,7 @@ class AuthModelBackend {
       };
 
       final response = await _apiService.post(
-        ApiConfig.resendCodeEndpoint,
+        ApiConfig.resendCodeEndpoint, // POST /resend
         requestData,
         requiresAuth: false,
       );
@@ -311,7 +308,7 @@ class AuthModelBackend {
   }
 
   // =============================================
-  // SESSION MANAGEMENT - FIXED
+  // SESSION MANAGEMENT
   // =============================================
 
   static Future<void> logout() async {
@@ -328,13 +325,13 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Get current user using /auth/me endpoint
+  // FIXED: Get current user using documentation endpoint
   static Future<AuthModelBackend?> getCurrentUser() async {
     try {
       final token = await _getToken();
       if (token != null) {
         try {
-          final response = await _apiService.get(ApiConfig.getCurrentUserEndpoint);
+          final response = await _apiService.get(ApiConfig.getCurrentUserEndpoint); // GET /me
           if (response['success'] == true && response['data'] != null) {
             final user = AuthModelBackend.fromJson(response['data']);
             await _saveCurrentUser(user);
@@ -359,7 +356,7 @@ class AuthModelBackend {
     }
   }
 
-  // FIXED: Check login status with backend validation
+  // Check login status with backend validation
   static Future<bool> isLoggedIn() async {
     try {
       final token = await _getToken();
