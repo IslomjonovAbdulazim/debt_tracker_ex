@@ -5,7 +5,7 @@ import 'app_text_styles.dart';
 import 'dart:math' as math;
 
 /// Complete theme configuration for the debt tracker application
-/// Designed with financial trust, professionalism, and clarity in mind
+/// Fixed TextStyle inheritance issues for smooth animations
 class AppTheme {
   AppTheme._();
 
@@ -46,16 +46,18 @@ class AppTheme {
     // Material 3 design
     useMaterial3: true,
 
-    // App bar theme - Clean financial header
+    // FIXED: App bar theme with consistent TextStyles
     appBarTheme: AppBarTheme(
       elevation: 0,
       scrolledUnderElevation: 2,
       backgroundColor: LightColors.surface,
       foregroundColor: LightColors.textPrimary,
       surfaceTintColor: AppColors.primary,
-      titleTextStyle: AppTextStyles.titleLarge.copyWith(
-        color: LightColors.textPrimary,
+      titleTextStyle: const TextStyle(
+        fontSize: 22,
         fontWeight: FontWeight.w600,
+        color: LightColors.textPrimary,
+        inherit: true, // FIXED: Consistent inherit value
       ),
       iconTheme: const IconThemeData(
         color: LightColors.textPrimary,
@@ -79,26 +81,11 @@ class AppTheme {
       unselectedItemColor: LightColors.textTertiary,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
-      selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+      selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, inherit: true),
+      unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, inherit: true),
     ),
 
-    // Navigation bar theme (Material 3)
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: LightColors.surface,
-      indicatorColor: AppColors.primaryShade,
-      labelTextStyle: MaterialStateProperty.all(
-        AppTextStyles.labelSmall.copyWith(color: LightColors.textPrimary),
-      ),
-      iconTheme: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return const IconThemeData(color: AppColors.primary);
-        }
-        return const IconThemeData(color: LightColors.textTertiary);
-      }),
-    ),
-
-    // Card theme - Clean financial cards
+    // FIXED: Card theme
     cardTheme: CardThemeData(
       color: LightColors.cardBackground,
       elevation: 2,
@@ -109,7 +96,7 @@ class AppTheme {
       margin: const EdgeInsets.all(8),
     ),
 
-    // Elevated button theme - Financial actions
+    // FIXED: Elevated button theme with consistent TextStyles
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
@@ -120,12 +107,16 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        textStyle: AppTextStyles.buttonMedium,
+        textStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          inherit: true, // FIXED: Consistent inherit value
+        ),
         minimumSize: const Size(88, 52),
       ),
     ),
 
-    // Outlined button theme
+    // FIXED: Outlined button theme
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primary,
@@ -134,12 +125,16 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        textStyle: AppTextStyles.buttonMedium,
+        textStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          inherit: true, // FIXED: Consistent inherit value
+        ),
         minimumSize: const Size(88, 52),
       ),
     ),
 
-    // Text button theme
+    // FIXED: Text button theme with consistent TextStyles
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: AppColors.primary,
@@ -147,7 +142,11 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        textStyle: AppTextStyles.buttonMedium,
+        textStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          inherit: true, // FIXED: Consistent inherit value
+        ),
         minimumSize: const Size(64, 40),
       ),
     ),
@@ -160,7 +159,7 @@ class AppTheme {
       shape: CircleBorder(),
     ),
 
-    // Input decoration theme - Financial forms
+    // FIXED: Input decoration theme
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: LightColors.inputFill,
@@ -184,91 +183,57 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: LightColors.inputErrorBorder, width: 2),
       ),
-      labelStyle: AppTextStyles.inputLabel.copyWith(color: LightColors.textSecondary),
-      hintStyle: AppTextStyles.inputHint.copyWith(color: LightColors.textTertiary),
-      errorStyle: AppTextStyles.inputError.copyWith(color: AppColors.debt),
+      labelStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: LightColors.textSecondary,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
+      hintStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: LightColors.textTertiary,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
+      errorStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.debt,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
 
-    // Checkbox theme
-    checkboxTheme: CheckboxThemeData(
-      fillColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return AppColors.primary;
-        }
-        return Colors.transparent;
-      }),
-      checkColor: MaterialStateProperty.all(Colors.white),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-    ),
-
-    // Radio theme
-    radioTheme: RadioThemeData(
-      fillColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return AppColors.primary;
-        }
-        return LightColors.textTertiary;
-      }),
-    ),
-
-    // Switch theme
-    switchTheme: SwitchThemeData(
-      thumbColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return AppColors.primary;
-        }
-        return AppColors.grey400;
-      }),
-      trackColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
-          return AppColors.primary.withOpacity(0.5);
-        }
-        return AppColors.grey300;
-      }),
-    ),
-
-    // Slider theme
-    sliderTheme: const SliderThemeData(
-      activeTrackColor: AppColors.primary,
-      inactiveTrackColor: AppColors.grey300,
-      thumbColor: AppColors.primary,
-      overlayColor: AppColors.primaryShade,
-    ),
-
-    // Progress indicator theme
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
-      color: AppColors.primary,
-      linearTrackColor: AppColors.grey200,
-      circularTrackColor: AppColors.grey200,
-    ),
-
-    // Divider theme
-    dividerTheme: const DividerThemeData(
-      color: LightColors.divider,
-      thickness: 1,
-      space: 1,
-    ),
-
-    // Dialog theme
+    // FIXED: Dialog theme
     dialogTheme: DialogThemeData(
       backgroundColor: LightColors.surface,
       elevation: 8,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      titleTextStyle: AppTextStyles.titleLarge.copyWith(
+      titleTextStyle: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w600,
         color: LightColors.textPrimary,
+        inherit: true, // FIXED: Consistent inherit value
       ),
-      contentTextStyle: AppTextStyles.bodyMedium.copyWith(
+      contentTextStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
         color: LightColors.textSecondary,
+        inherit: true, // FIXED: Consistent inherit value
       ),
     ),
 
-    // Snackbar theme
+    // FIXED: Snackbar theme
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColors.grey800,
-      contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
+      contentTextStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: Colors.white,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       behavior: SnackBarBehavior.floating,
       elevation: 6,
@@ -283,12 +248,20 @@ class AppTheme {
       ),
     ),
 
-    // Tab bar theme
+    // FIXED: Tab bar theme with consistent TextStyles
     tabBarTheme: TabBarThemeData(
       labelColor: AppColors.primary,
       unselectedLabelColor: LightColors.textTertiary,
-      labelStyle: AppTextStyles.tabLabel.copyWith(fontWeight: FontWeight.w600),
-      unselectedLabelStyle: AppTextStyles.tabLabel,
+      labelStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
+      unselectedLabelStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
       indicator: const UnderlineTabIndicator(
         borderSide: BorderSide(color: AppColors.primary, width: 2),
       ),
@@ -298,8 +271,18 @@ class AppTheme {
     listTileTheme: ListTileThemeData(
       iconColor: LightColors.textSecondary,
       textColor: LightColors.textPrimary,
-      titleTextStyle: AppTextStyles.listTitle.copyWith(color: LightColors.textPrimary),
-      subtitleTextStyle: AppTextStyles.listSubtitle.copyWith(color: LightColors.textSecondary),
+      titleTextStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: LightColors.textPrimary,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
+      subtitleTextStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: LightColors.textSecondary,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
@@ -316,23 +299,23 @@ class AppTheme {
       size: 24,
     ),
 
-    // Text theme
+    // FIXED: Text theme with consistent inherit values
     textTheme: const TextTheme(
-      displayLarge: AppTextStyles.displayLarge,
-      displayMedium: AppTextStyles.displayMedium,
-      displaySmall: AppTextStyles.displaySmall,
-      headlineLarge: AppTextStyles.headlineLarge,
-      headlineMedium: AppTextStyles.headlineMedium,
-      headlineSmall: AppTextStyles.headlineSmall,
-      titleLarge: AppTextStyles.titleLarge,
-      titleMedium: AppTextStyles.titleMedium,
-      titleSmall: AppTextStyles.titleSmall,
-      bodyLarge: AppTextStyles.bodyLarge,
-      bodyMedium: AppTextStyles.bodyMedium,
-      bodySmall: AppTextStyles.bodySmall,
-      labelLarge: AppTextStyles.labelLarge,
-      labelMedium: AppTextStyles.labelMedium,
-      labelSmall: AppTextStyles.labelSmall,
+      displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, inherit: true),
+      displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400, inherit: true),
+      displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w400, inherit: true),
+      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, inherit: true),
+      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, inherit: true),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, inherit: true),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, inherit: true),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, inherit: true),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, inherit: true),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, inherit: true),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, inherit: true),
+      bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, inherit: true),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, inherit: true),
+      labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, inherit: true),
+      labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, inherit: true),
     ),
 
     // Extensions
@@ -378,16 +361,18 @@ class AppTheme {
     // Material 3 design
     useMaterial3: true,
 
-    // App bar theme
+    // FIXED: App bar theme for dark mode
     appBarTheme: AppBarTheme(
       elevation: 0,
       scrolledUnderElevation: 2,
       backgroundColor: DarkColors.surface,
       foregroundColor: DarkColors.textPrimary,
       surfaceTintColor: AppColors.primaryLight,
-      titleTextStyle: AppTextStyles.titleLarge.copyWith(
-        color: DarkColors.textPrimary,
+      titleTextStyle: const TextStyle(
+        fontSize: 22,
         fontWeight: FontWeight.w600,
+        color: DarkColors.textPrimary,
+        inherit: true, // FIXED: Consistent inherit value
       ),
       iconTheme: const IconThemeData(
         color: DarkColors.textPrimary,
@@ -426,8 +411,29 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        textStyle: AppTextStyles.buttonMedium,
+        textStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          inherit: true, // FIXED: Consistent inherit value
+        ),
         minimumSize: const Size(88, 52),
+      ),
+    ),
+
+    // FIXED: Text button theme for dark mode
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.primaryLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        textStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          inherit: true, // FIXED: Consistent inherit value
+        ),
+        minimumSize: const Size(64, 40),
       ),
     ),
 
@@ -455,29 +461,44 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: DarkColors.inputErrorBorder, width: 2),
       ),
-      labelStyle: AppTextStyles.inputLabel.copyWith(color: DarkColors.textSecondary),
-      hintStyle: AppTextStyles.inputHint.copyWith(color: DarkColors.textTertiary),
-      errorStyle: AppTextStyles.inputError.copyWith(color: AppColors.debtLight),
+      labelStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: DarkColors.textSecondary,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
+      hintStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: DarkColors.textTertiary,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
+      errorStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.debtLight,
+        inherit: true, // FIXED: Consistent inherit value
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
 
-    // Text theme
+    // FIXED: Text theme for dark mode with consistent inherit values
     textTheme: const TextTheme(
-      displayLarge: AppTextStyles.displayLarge,
-      displayMedium: AppTextStyles.displayMedium,
-      displaySmall: AppTextStyles.displaySmall,
-      headlineLarge: AppTextStyles.headlineLarge,
-      headlineMedium: AppTextStyles.headlineMedium,
-      headlineSmall: AppTextStyles.headlineSmall,
-      titleLarge: AppTextStyles.titleLarge,
-      titleMedium: AppTextStyles.titleMedium,
-      titleSmall: AppTextStyles.titleSmall,
-      bodyLarge: AppTextStyles.bodyLarge,
-      bodyMedium: AppTextStyles.bodyMedium,
-      bodySmall: AppTextStyles.bodySmall,
-      labelLarge: AppTextStyles.labelLarge,
-      labelMedium: AppTextStyles.labelMedium,
-      labelSmall: AppTextStyles.labelSmall,
+      displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, inherit: true),
+      displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400, inherit: true),
+      displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w400, inherit: true),
+      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, inherit: true),
+      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, inherit: true),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, inherit: true),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, inherit: true),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, inherit: true),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, inherit: true),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, inherit: true),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, inherit: true),
+      bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, inherit: true),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, inherit: true),
+      labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, inherit: true),
+      labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, inherit: true),
     ),
 
     // Extensions

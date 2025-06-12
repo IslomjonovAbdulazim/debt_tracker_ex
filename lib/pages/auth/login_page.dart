@@ -192,11 +192,11 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Forgot Password
+                  // FIXED: Forgot Password - Simplified styling
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
+                    child: GestureDetector(
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -204,9 +204,15 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         );
                       },
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: theme.colorScheme.primary),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                        child: Text(
+                          'Forgot Password?',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -232,38 +238,45 @@ class _LoginPageState extends State<LoginPage> {
                         'Login',
                         style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Register Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Don\'t have an account? ',
-                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegisterPage(),
+                  // FIXED: Register Link - Simplified without TextButton
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterPage(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        child: RichText(
+                          text: TextSpan(
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
-                          );
-                        },
-                        child: Text(
-                          'Register',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                            children: [
+                              const TextSpan(text: 'Don\'t have an account? '),
+                              TextSpan(
+                                text: 'Register',
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),

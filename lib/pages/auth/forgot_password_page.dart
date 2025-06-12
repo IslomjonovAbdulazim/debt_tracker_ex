@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../models/auth_model_backend.dart';
 import 'reset_password_page.dart';
 
@@ -170,19 +169,26 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         'Send Reset Code',
                         style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Back to Login
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Back to Login',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.primary,
+                  // FIXED: Back to Login - Simplified without TextButton
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        child: Text(
+                          'Back to Login',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ),

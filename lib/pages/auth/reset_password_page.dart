@@ -1,4 +1,3 @@
-// lib/pages/auth/reset_password_page.dart
 import 'package:flutter/material.dart';
 import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
@@ -120,12 +119,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      // FIXED: Pass the code to resetPassword method
       final code = _getCompleteCode();
       final result = await AuthModelBackend.resetPassword(
         email: widget.email,
         newPassword: _newPasswordController.text,
-        code: code.isNotEmpty ? code : widget.resetCode, // Use entered code or demo code
+        code: code.isNotEmpty ? code : widget.resetCode,
       );
 
       if (!mounted) return;
@@ -276,6 +274,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           'Verify Code',
                           style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onPrimary,
                           ),
                         ),
                       ),
@@ -375,6 +374,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           'Reset Password',
                           style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onPrimary,
                           ),
                         ),
                       ),
@@ -383,20 +383,26 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
                   const SizedBox(height: 16),
 
-                  // Back to Login
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const LoginPage()),
-                            (route) => false,
-                      );
-                    },
-                    child: Text(
-                      'Back to Login',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.primary,
+                  // FIXED: Back to Login - Simplified without TextButton
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LoginPage()),
+                              (route) => false,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        child: Text(
+                          'Back to Login',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ),

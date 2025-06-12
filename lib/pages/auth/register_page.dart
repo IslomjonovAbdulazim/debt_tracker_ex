@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../models/auth_model_backend.dart';
 import 'login_page.dart';
 import 'verify_email_page.dart';
@@ -287,38 +286,45 @@ class _RegisterPageState extends State<RegisterPage> {
                         'Register',
                         style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Login Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Already have an account? ',
-                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginPage(),
+                  // FIXED: Login Link - Simplified without TextButton
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginPage(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        child: RichText(
+                          text: TextSpan(
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
-                          );
-                        },
-                        child: Text(
-                          'Login',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                            children: [
+                              const TextSpan(text: 'Already have an account? '),
+                              TextSpan(
+                                text: 'Login',
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),

@@ -101,7 +101,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Use the proper resend code endpoint
       final result = await AuthModelBackend.resendCode(
         email: widget.email,
       );
@@ -117,7 +116,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           ),
         );
 
-        // Show demo code if available
         if (result['verificationCode'] != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -267,33 +265,40 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         'Verify Email',
                         style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Resend Code
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Didn\'t receive the code? ',
-                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      GestureDetector(
-                        onTap: _isLoading ? null : _resendCode,
-                        child: Text(
-                          'Resend',
-                          style: TextStyle(
-                            color: _isLoading
-                                ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
-                                : theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                  // FIXED: Resend Code - Simplified without TextButton
+                  Center(
+                    child: GestureDetector(
+                      onTap: _isLoading ? null : _resendCode,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        child: RichText(
+                          text: TextSpan(
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Didn\'t receive the code? '),
+                              TextSpan(
+                                text: 'Resend',
+                                style: TextStyle(
+                                  color: _isLoading
+                                      ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
+                                      : theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
 
                   if (widget.verificationCode != null) ...[
