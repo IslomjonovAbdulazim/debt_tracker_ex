@@ -4,12 +4,10 @@ import 'login_page.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;
-  final String? resetCode;
 
   const ResetPasswordPage({
     super.key,
     required this.email,
-    this.resetCode,
   });
 
   @override
@@ -28,22 +26,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _codeVerified = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.resetCode != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demo Reset Code: ${widget.resetCode}'),
-            duration: const Duration(seconds: 10),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -119,11 +101,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final code = _getCompleteCode();
       final result = await AuthModelBackend.resetPassword(
         email: widget.email,
         newPassword: _newPasswordController.text,
-        code: code.isNotEmpty ? code : widget.resetCode,
       );
 
       if (!mounted) return;
@@ -383,7 +363,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
                   const SizedBox(height: 16),
 
-                  // FIXED: Back to Login - Simplified without TextButton
+                  // Back to Login
                   Center(
                     child: GestureDetector(
                       onTap: () {
@@ -406,40 +386,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       ),
                     ),
                   ),
-
-                  if (widget.resetCode != null && !_codeVerified) ...[
-                    const SizedBox(height: 32),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: theme.colorScheme.primary.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Demo Reset Code',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.resetCode!,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

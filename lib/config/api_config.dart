@@ -3,37 +3,39 @@ class ApiConfig {
   // Base URL configuration
   static const String baseUrl = 'http://10.10.1.123:8000';
 
-  // FIXED: Authentication endpoints matching documentation exactly
-  static const String registerEndpoint = '/register';
-  static const String verifyEmailEndpoint = '/verify-email';
-  static const String loginEndpoint = '/login';
-  static const String forgotPasswordEndpoint = '/forgot-password';
-  static const String resetPasswordEndpoint = '/reset-password';
-  static const String resendCodeEndpoint = '/resend'; // Not in docs, keeping for app functionality
+  // FIXED: Authentication endpoints matching API documentation exactly
+  static const String registerEndpoint = '/api/v1/auth/register';
+  static const String verifyEmailEndpoint = '/api/v1/auth/register/verify/otp';
+  static const String loginEndpoint = '/api/v1/auth/login';
+  static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
+  static const String verifyOtpEndpoint = '/api/v1/auth/forgot-password/otp';
+  static const String changePasswordEndpoint = '/api/v1/auth/forgot/change-password';
+  static const String refreshTokenEndpoint = '/api/v1/auth/token/refresh';
+  static const String resendCodeEndpoint = '/api/v1/auth/resend'; // Assuming pattern
 
   // FIXED: Contact endpoints matching documentation
-  static const String contactsEndpoint = '/contacts'; // GET all contacts
-  static const String createContactEndpoint = '/contact'; // POST create contact
-  static String getContactEndpoint(String id) => '/contact/$id';
-  static String updateContactEndpoint(String id) => '/contact/$id';
-  static String deleteContactEndpoint(String id) => '/contact/$id';
+  static const String contactsEndpoint = '/api/v1/apps/contacts'; // GET all contacts
+  static const String createContactEndpoint = '/api/v1/apps/contact'; // POST create contact
+  static String getContactEndpoint(String id) => '/api/v1/apps/contact/$id';
+  static String updateContactEndpoint(String id) => '/api/v1/apps/contact/$id';
+  static String deleteContactEndpoint(String id) => '/api/v1/apps/contact/$id';
 
   // FIXED: Contact debt endpoints from documentation
-  static String getContactDebtsEndpoint(String contactId) => '/contact-debts/$contactId';
-  static const String createContactDebtEndpoint = '/contact-debt';
+  static String getContactDebtsEndpoint(String contactId) => '/api/v1/apps/contact-debts/$contactId';
+  static const String createContactDebtEndpoint = '/api/v1/apps/contact-debt';
 
-  // FIXED: Home endpoint matching documentation
-  static const String homeOverviewEndpoint = '/home/overview';
+  // FIXED: Home endpoint matching documentation exactly
+  static const String homeOverviewEndpoint = '/api/v1/apps/home/overview';
 
   // FIXED: Debt endpoints matching documentation
-  static const String debtsEndpoint = '/debts';
-  static String getDebtEndpoint(String id) => '/debt/$id'; // Assuming pattern
-  static String updateDebtEndpoint(String id) => '/debt/$id'; // Assuming pattern
-  static String deleteDebtEndpoint(String id) => '/debt/$id'; // Assuming pattern
-  static String markDebtPaidEndpoint(String id) => '/debt/$id/pay'; // Assuming pattern
+  static const String debtsEndpoint = '/api/v1/apps/debts';
+  static String getDebtEndpoint(String id) => '/api/v1/apps/debt/$id';
+  static String updateDebtEndpoint(String id) => '/api/v1/apps/debt/$id';
+  static String deleteDebtEndpoint(String id) => '/api/v1/apps/debt/$id';
+  static String markDebtPaidEndpoint(String id) => '/api/v1/apps/debt/$id/pay';
 
-  // User profile endpoint (not in docs but needed for auth check)
-  static const String getCurrentUserEndpoint = '/me'; // Assuming simple path
+  // User profile endpoint
+  static const String getCurrentUserEndpoint = '/api/v1/apps/me';
 
   // Request configuration
   static const Duration requestTimeout = Duration(seconds: 30);

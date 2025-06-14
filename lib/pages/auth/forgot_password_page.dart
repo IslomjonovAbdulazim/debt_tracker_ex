@@ -45,7 +45,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           MaterialPageRoute(
             builder: (context) => ResetPasswordPage(
               email: _emailController.text.trim(),
-              resetCode: result['resetCode'],
             ),
           ),
         );
@@ -176,7 +175,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // FIXED: Back to Login - Simplified without TextButton
+                  // Back to Login
                   Center(
                     child: GestureDetector(
                       onTap: () => Navigator.pop(context),

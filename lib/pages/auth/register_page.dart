@@ -57,7 +57,6 @@ class _RegisterPageState extends State<RegisterPage> {
             builder: (context) => VerifyEmailPage(
               email: _emailController.text.trim(),
               isFromRegistration: true,
-              verificationCode: result['verificationCode'],
             ),
           ),
         );
@@ -293,7 +292,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // FIXED: Login Link - Simplified without TextButton
+                  // Login Link
                   Center(
                     child: GestureDetector(
                       onTap: () {
