@@ -11,10 +11,10 @@ class ApiConfig {
   static const String verifyOtpEndpoint = '/api/v1/auth/forgot-password/otp';
   static const String changePasswordEndpoint = '/api/v1/auth/forgot/change-password';
   static const String refreshTokenEndpoint = '/api/v1/auth/token/refresh';
-  static const String resendCodeEndpoint = '/api/v1/auth/resend'; // Assuming pattern
+  static const String resendCodeEndpoint = '/api/v1/auth/resend';
 
-  // FIXED: Contact endpoints matching documentation
-  static const String contactsEndpoint = '/api/v1/apps/contacts'; // GET all contacts
+  // FIXED: Contact endpoints matching documentation exactly
+  static const String contactsEndpoint = '/api/v1/apps/contact/list'; // GET all contacts
   static const String createContactEndpoint = '/api/v1/apps/contact'; // POST create contact
   static String getContactEndpoint(String id) => '/api/v1/apps/contact/$id';
   static String updateContactEndpoint(String id) => '/api/v1/apps/contact/$id';
@@ -22,7 +22,7 @@ class ApiConfig {
 
   // FIXED: Contact debt endpoints from documentation
   static String getContactDebtsEndpoint(String contactId) => '/api/v1/apps/contact-debts/$contactId';
-  static const String createContactDebtEndpoint = '/api/v1/apps/contact-debt';
+  static String createContactDebtEndpoint(String contactId) => '/api/v1/apps/contact-debt/$contactId';
 
   // FIXED: Home endpoint matching documentation exactly
   static const String homeOverviewEndpoint = '/api/v1/apps/home/overview';

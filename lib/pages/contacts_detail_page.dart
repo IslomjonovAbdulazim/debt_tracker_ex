@@ -46,6 +46,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     });
 
     try {
+      // FIXED: Use the updated getDebtsByContactId method
       final debts = await DebtRecordModelBackend.getDebtsByContactId(widget.contact.id);
 
       double myTotal = 0.0;
@@ -118,6 +119,7 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
     });
 
     try {
+      // FIXED: Use the updated markDebtAsPaid method
       final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
 
       if (result['success'] == true) {
@@ -133,9 +135,19 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
         );
       } else {
         AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: false);
+
+        // FIXED: Better error message handling
+        String errorMessage = result['message'] ?? 'Failed to mark debt as paid';
+        if (result['errors'] != null && result['errors'] is Map) {
+          final errors = result['errors'] as Map;
+          if (errors.isNotEmpty) {
+            errorMessage = errors.values.first.toString();
+          }
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Failed to mark debt as paid'),
+            content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
           ),

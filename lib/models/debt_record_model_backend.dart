@@ -46,11 +46,10 @@ class DebtRecordModelBackend {
   // FIXED: Documentation expects these exact field names for contact-debt endpoint
   Map<String, dynamic> toJson() {
     return {
-      'contact_id': int.tryParse(contactId) ?? contactId,
-      'debt_amount': debtAmount, // Changed from 'amount' to 'debt_amount'
+      'debt_amount': debtAmount,
       'description': debtDescription,
-      'due_date': dueDate.toIso8601String(), // Added due_date field
-      'is_paid': isPaidBack, // Added is_paid field
+      'due_date': dueDate.toIso8601String(),
+      'is_paid': isPaidBack,
       'is_my_debt': isMyDebt,
     };
   }
@@ -62,7 +61,7 @@ class DebtRecordModelBackend {
       contactId: json['contact_id']?.toString() ?? '',
       contactName: json['contact_name'] ?? 'Unknown Contact',
       contactPhone: json['contact_phone'],
-      debtAmount: (json['debt_amount'] ?? json['amount'] ?? 0).toDouble(), // Handle both field names
+      debtAmount: (json['debt_amount'] ?? json['amount'] ?? 0).toDouble(),
       debtDescription: json['description'] ?? '',
       createdDate: DateTime.parse(
           json['created_at'] ?? DateTime.now().toIso8601String()
@@ -79,13 +78,13 @@ class DebtRecordModelBackend {
   // API METHODS - FIXED to match documentation
   // =============================================
 
-  // FIXED: Create debt using contact-debt endpoint
+  // FIXED: Create debt using contact-debt endpoint with contact ID in path
   static Future<Map<String, dynamic>> createDebtRecord(DebtRecordModelBackend debtRecord) async {
     try {
       AppLogger.dataOperation('CREATE', 'Debt');
 
       final response = await _apiService.post(
-        ApiConfig.createContactDebtEndpoint, // POST /contact-debt
+        ApiConfig.createContactDebtEndpoint(debtRecord.contactId), // POST /api/v1/apps/contact-debt/{contactId}
         debtRecord.toJson(),
       );
 
@@ -110,16 +109,16 @@ class DebtRecordModelBackend {
     try {
       AppLogger.info('Fetching all debt records', tag: 'DEBT');
 
-      final response = await _apiService.get(ApiConfig.debtsEndpoint); // GET /debts
+      final response = await _apiService.get(ApiConfig.debtsEndpoint); // GET /api/v1/apps/debts
 
       if (response['success'] == true) {
         final data = response['data'];
         List<dynamic> debtsData = [];
 
-        if (data != null && data['debts'] is List) {
-          debtsData = data['debts'];
-        } else if (data is List) {
+        if (data != null && data is List) {
           debtsData = data;
+        } else if (data != null && data['debts'] is List) {
+          debtsData = data['debts'];
         }
 
         final debts = debtsData
@@ -144,17 +143,17 @@ class DebtRecordModelBackend {
       AppLogger.info('Fetching debts for contact: $contactId', tag: 'DEBT');
 
       final response = await _apiService.get(
-          ApiConfig.getContactDebtsEndpoint(contactId) // GET /contact-debts/{contact_id}
+          ApiConfig.getContactDebtsEndpoint(contactId) // GET /api/v1/apps/contact-debts/{contact_id}
       );
 
       if (response['success'] == true) {
         final data = response['data'];
         List<dynamic> debtsData = [];
 
-        if (data != null && data['debts'] is List) {
-          debtsData = data['debts'];
-        } else if (data is List) {
+        if (data != null && data is List) {
           debtsData = data;
+        } else if (data != null && data['debts'] is List) {
+          debtsData = data['debts'];
         }
 
         final debts = debtsData
@@ -173,12 +172,12 @@ class DebtRecordModelBackend {
     }
   }
 
-  // FIXED: Get home overview using documentation endpoint
+  // FIXED: Get home overview using documentation endpoint with correct field names
   static Future<Map<String, dynamic>> getHomeOverview() async {
     try {
       AppLogger.info('Fetching home overview', tag: 'DEBT');
 
-      final response = await _apiService.get(ApiConfig.homeOverviewEndpoint); // GET /home/overview
+      final response = await _apiService.get(ApiConfig.homeOverviewEndpoint); // GET /api/v1/apps/home/overview
 
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
@@ -191,7 +190,7 @@ class DebtRecordModelBackend {
           'overdue_debts_count': data['overdue'] ?? 0,
         };
 
-        AppLogger.info('Home overview retrieved successfully', tag: 'DEBT');
+        AppLogger.info('Home overview retrieved successfully', tag: 'DEBT', data: overview);
         return overview;
       }
 

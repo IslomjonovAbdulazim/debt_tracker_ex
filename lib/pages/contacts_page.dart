@@ -41,6 +41,7 @@ class _ContactsPageState extends State<ContactsPage> {
     AppLogger.info('Loading contacts', tag: 'CONTACTS');
 
     try {
+      // FIXED: Use the updated getAllContacts method
       final loadedContacts = await ContactModelBackend.getAllContacts();
 
       stopwatch.stop();
@@ -176,10 +177,14 @@ class _ContactsPageState extends State<ContactsPage> {
             onPressed: () async {
               AppLogger.userAction('Add contact submit attempt');
 
-              if (nameController.text.trim().isEmpty || phoneController.text.trim().isEmpty) {
+              // FIXED: Enhanced validation using the model's validation methods
+              final nameError = ContactModelBackend.validateFullName(nameController.text);
+              final phoneError = ContactModelBackend.validatePhoneNumber(phoneController.text);
+
+              if (nameError != null || phoneError != null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Please fill all fields'),
+                    content: Text(nameError ?? phoneError ?? 'Please fill all fields correctly'),
                     backgroundColor: theme.colorScheme.error,
                     behavior: SnackBarBehavior.floating,
                   ),
@@ -187,6 +192,7 @@ class _ContactsPageState extends State<ContactsPage> {
                 return;
               }
 
+              // FIXED: Create contact with proper field names matching API
               final newContact = ContactModelBackend(
                 id: '', // Will be set by API
                 fullName: nameController.text.trim(),
@@ -194,6 +200,7 @@ class _ContactsPageState extends State<ContactsPage> {
                 createdDate: DateTime.now(),
               );
 
+              // FIXED: Use the updated createContact method
               final result = await ContactModelBackend.createContact(newContact);
 
               if (result['success'] == true) {
@@ -202,16 +209,27 @@ class _ContactsPageState extends State<ContactsPage> {
                 _loadContacts();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Contact added successfully!'),
+                    content: Text(result['message'] ?? 'Contact added successfully!'),
                     backgroundColor: theme.colorScheme.primary,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               } else {
                 AppLogger.dataOperation('CREATE', 'Contact', success: false, data: result);
+
+                // FIXED: Better error message handling
+                String errorMessage = result['message'] ?? 'Failed to add contact';
+                if (result['errors'] != null && result['errors'] is Map) {
+                  final errors = result['errors'] as Map;
+                  if (errors.isNotEmpty) {
+                    // Show the first validation error
+                    errorMessage = errors.values.first.toString();
+                  }
+                }
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(result['message'] ?? 'Failed to add contact'),
+                    content: Text(errorMessage),
                     backgroundColor: theme.colorScheme.error,
                     behavior: SnackBarBehavior.floating,
                   ),
@@ -239,7 +257,7 @@ class _ContactsPageState extends State<ContactsPage> {
     final theme = Theme.of(context);
 
     try {
-      // Check if contact has active debts
+      // FIXED: Check if contact has active debts using updated method
       final contactDebts = await DebtRecordModelBackend.getDebtsByContactId(contact.id);
       final activeDebts = contactDebts.where((debt) => !debt.isPaidBack).toList();
 
@@ -251,9 +269,10 @@ class _ContactsPageState extends State<ContactsPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Cannot delete contact with active debts'),
+            content: Text('Cannot delete ${contact.fullName} - they have ${activeDebts.length} active debt(s)'),
             backgroundColor: theme.colorScheme.secondary,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
         return;
@@ -270,11 +289,33 @@ class _ContactsPageState extends State<ContactsPage> {
               color: theme.colorScheme.onSurface,
             ),
           ),
-          content: Text(
-            'Are you sure you want to delete ${contact.fullName}?',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to delete ${contact.fullName}?',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (contactDebts.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'This will also delete ${contactDebts.length} completed debt record(s).',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           actions: [
             TextButton(
@@ -300,7 +341,9 @@ class _ContactsPageState extends State<ContactsPage> {
       );
 
       if (confirmed == true) {
+        // FIXED: Use the updated deleteContact method
         final result = await ContactModelBackend.deleteContact(contact.id);
+
         if (result['success'] == true) {
           AppLogger.dataOperation('DELETE', 'Contact', success: true, data: {
             'contactId': contact.id,
@@ -308,16 +351,26 @@ class _ContactsPageState extends State<ContactsPage> {
           _loadContacts();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Contact deleted successfully!'),
+              content: Text(result['message'] ?? 'Contact deleted successfully!'),
               backgroundColor: theme.colorScheme.primary,
               behavior: SnackBarBehavior.floating,
             ),
           );
         } else {
           AppLogger.dataOperation('DELETE', 'Contact', success: false, data: result);
+
+          // FIXED: Better error message handling
+          String errorMessage = result['message'] ?? 'Failed to delete contact';
+          if (result['errors'] != null && result['errors'] is Map) {
+            final errors = result['errors'] as Map;
+            if (errors.isNotEmpty) {
+              errorMessage = errors.values.first.toString();
+            }
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message'] ?? 'Failed to delete contact'),
+              content: Text(errorMessage),
               backgroundColor: theme.colorScheme.error,
               behavior: SnackBarBehavior.floating,
             ),
@@ -565,13 +618,13 @@ class _ContactsPageState extends State<ContactsPage> {
 
               const SizedBox(width: 16),
 
-              // Contact Info (removed email as backend doesn't support it)
+              // Contact Info (using the model's properties)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      contact.fullName,
+                      contact.displayName, // Using the getter from the model
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
@@ -579,7 +632,7 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      contact.formattedPhoneNumber,
+                      contact.formattedPhoneNumber, // Using the formatted version
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

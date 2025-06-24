@@ -114,12 +114,13 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     try {
       AppLogger.info('Loading home overview', tag: 'DASHBOARD');
 
-      // Use the new getHomeOverview method
+      // Use the new getHomeOverview method with correct field names
       final overview = await DebtRecordModelBackend.getHomeOverview();
 
       if (overview['success'] == true) {
         if (mounted) {
           setState(() {
+            // FIXED: Use the correct field names from API documentation
             totalIOwe = overview['total_i_owe']?.toDouble() ?? 0.0;
             totalTheyOwe = overview['total_they_owe']?.toDouble() ?? 0.0;
             activeDebts = overview['active_debts_count'] ?? 0;

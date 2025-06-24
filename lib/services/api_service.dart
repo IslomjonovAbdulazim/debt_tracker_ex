@@ -72,6 +72,13 @@ class ApiService {
           refreshToken = data['refresh'];
           AppLogger.info('Found tokens in data object format', tag: 'AUTH');
         }
+        // Format 3: Tokens in nested structure
+        if (data.containsKey('tokens') && data['tokens'] is Map) {
+          final tokens = data['tokens'] as Map<String, dynamic>;
+          accessToken = tokens['access'];
+          refreshToken = tokens['refresh'];
+          AppLogger.info('Found tokens in nested tokens object', tag: 'AUTH');
+        }
       }
 
       // Save tokens if found
@@ -359,7 +366,7 @@ class ApiService {
   }
 
   // =============================================
-  // RESPONSE HANDLER - Fixed for actual API format
+  // RESPONSE HANDLER - Fixed for new API format
   // =============================================
 
   Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
@@ -377,17 +384,21 @@ class ApiService {
       };
     }
 
-    // FIXED: Save tokens if present - handle both formats
+    // FIXED: Save tokens if present - handle multiple formats
     await _saveTokensFromResponse(responseData);
 
     AppLogger.apiResponse('REQUEST', 'response', response.statusCode, response: responseData);
 
-    // Enhanced status code handling
+    // Enhanced status code handling with better response parsing
     switch (response.statusCode) {
       case 200:
       case 201:
+      // FIXED: Better success handling for different API response formats
+        bool isSuccess = responseData['success'] ??
+            (response.statusCode >= 200 && response.statusCode < 300);
+
         return {
-          'success': responseData['success'] ?? true,
+          'success': isSuccess,
           'message': responseData['message'] ?? 'Success',
           'data': responseData['data'] ?? responseData,
           'statusCode': response.statusCode,
@@ -397,7 +408,7 @@ class ApiService {
         return {
           'success': false,
           'message': responseData['message'] ?? 'Bad request',
-          'errors': responseData['errors'] ?? [],
+          'errors': responseData['errors'] ?? responseData['error'] ?? [],
           'statusCode': response.statusCode,
         };
 
@@ -429,7 +440,7 @@ class ApiService {
         return {
           'success': false,
           'message': responseData['message'] ?? 'Validation error',
-          'errors': responseData['errors'] ?? [],
+          'errors': responseData['errors'] ?? responseData['error'] ?? [],
           'statusCode': response.statusCode,
         };
 
@@ -537,7 +548,7 @@ class ApiService {
       AppLogger.debug('Current access token: ${accessToken.substring(0, 20)}...', tag: 'AUTH');
 
       // Test token with /me endpoint
-      final response = await get('/me', requiresAuth: true);
+      final response = await get('/api/v1/apps/me', requiresAuth: true);
 
       return {
         'hasToken': true,

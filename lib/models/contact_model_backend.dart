@@ -120,7 +120,7 @@ class ContactModelBackend {
       }
 
       final response = await _apiService.post(
-        ApiConfig.createContactEndpoint, // POST /contact
+        ApiConfig.createContactEndpoint, // POST /api/v1/apps/contact
         contact.toJson(),
       );
 
@@ -149,16 +149,16 @@ class ContactModelBackend {
 
       AppLogger.info('Fetching contacts from API', tag: 'CONTACT');
 
-      final response = await _apiService.get(ApiConfig.contactsEndpoint); // GET /contacts
+      final response = await _apiService.get(ApiConfig.contactsEndpoint); // GET /api/v1/apps/contact/list
 
       if (response['success'] == true) {
         List<dynamic> contactsData = [];
 
         // Handle different response structures
-        if (response['data'] != null && response['data']['contacts'] is List) {
-          contactsData = response['data']['contacts'];
-        } else if (response['data'] is List) {
+        if (response['data'] != null && response['data'] is List) {
           contactsData = response['data'];
+        } else if (response['data'] != null && response['data']['contacts'] is List) {
+          contactsData = response['data']['contacts'];
         }
 
         final contacts = contactsData

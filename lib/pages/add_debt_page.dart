@@ -61,7 +61,9 @@ class _AddDebtPageState extends State<AddDebtPage> {
     try {
       final double amount = double.parse(_amountController.text);
 
-      // Create debt record - backend will set creation date and ID
+      // FIXED: Create debt record with proper date handling
+      final dueDate = DateTime.now().add(const Duration(days: 30));
+
       final newDebt = DebtRecordModelBackend(
         recordId: '', // Will be set by API
         contactId: widget.contact.id,
@@ -69,10 +71,12 @@ class _AddDebtPageState extends State<AddDebtPage> {
         debtAmount: amount,
         debtDescription: _descriptionController.text.trim(),
         createdDate: DateTime.now(),
+        dueDate: dueDate,
         isMyDebt: widget.isMyDebt,
         isPaidBack: false,
       );
 
+      // FIXED: Use the updated createDebtRecord method that uses contact ID in URL path
       final result = await DebtRecordModelBackend.createDebtRecord(newDebt);
 
       stopwatch.stop();
@@ -101,11 +105,22 @@ class _AddDebtPageState extends State<AddDebtPage> {
           ),
         );
       } else {
-        AppLogger.dataOperation('CREATE', 'Debt', success: false);
+        AppLogger.dataOperation('CREATE', 'Debt', success: false, data: result);
+
+        // FIXED: Better error message handling
+        String errorMessage = result['message'] ?? 'Failed to add debt record';
+
+        // Handle validation errors specifically
+        if (result['errors'] != null && result['errors'] is Map) {
+          final errors = result['errors'] as Map;
+          if (errors.isNotEmpty) {
+            errorMessage = errors.values.first.toString();
+          }
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Failed to add debt record'),
+            content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -364,7 +379,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
               const SizedBox(height: 32),
 
-              // Info Card (explaining backend behavior)
+              // FIXED: Info Card with correct API behavior explanation
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: DebtThemeUtils.getFinancialCardDecoration(context),
