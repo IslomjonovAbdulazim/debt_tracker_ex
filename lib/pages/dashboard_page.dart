@@ -1,8 +1,8 @@
 import 'package:debt_tracker_ex/config/app_logger.dart';
 import 'package:flutter/material.dart';
-import '../models/contact_model_backend.dart';
+import '../models/contact_model.dart';
 import '../models/debt_record_model_backend.dart';
-import '../models/auth_model_backend.dart';
+import '../models/auth_model.dart';
 import '../config/app_theme.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';

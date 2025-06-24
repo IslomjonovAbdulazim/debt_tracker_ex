@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'models/auth_model_backend.dart';
+import 'models/auth_model.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/dashboard_page.dart';
 import 'config/app_theme.dart';

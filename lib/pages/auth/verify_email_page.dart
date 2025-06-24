@@ -1,11 +1,12 @@
+// lib/pages/auth/verify_email_page.dart
 import 'package:flutter/material.dart';
-import '../../models/auth_model_backend.dart';
+import '../../models/auth_model.dart';
 import 'login_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
   final String email;
   final bool isFromRegistration;
-  final String? verificationCode;
+  final String? verificationCode; // ADDED: Display code in app
 
   const VerifyEmailPage({
     super.key,
@@ -38,24 +39,37 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     return _codeControllers.map((c) => c.text).join();
   }
 
+  // ADDED: Auto-fill code if provided
+  void _fillCodeFromBackend() {
+    if (widget.verificationCode != null && widget.verificationCode!.length == 6) {
+      for (int i = 0; i < 6; i++) {
+        _codeControllers[i].text = widget.verificationCode![i];
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-fill code after a short delay to let UI settle
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _fillCodeFromBackend();
+    });
+  }
+
   Future<void> _handleVerify() async {
     if (!_formKey.currentState!.validate()) return;
 
     final code = _getCompleteCode();
     if (code.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter the complete verification code'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      _showError('Please enter the complete verification code');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.verifyEmail(
+      final result = await AuthModel.verifyEmail(
         email: widget.email,
         code: code,
       );
@@ -63,12 +77,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       if (!mounted) return;
 
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Email verified successfully!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
+        _showSuccess('Email verified successfully!');
 
         Navigator.pushAndRemoveUntil(
           context,
@@ -76,20 +85,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
               (route) => false,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Verification failed'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        _showError(result['message'] ?? 'Verification failed');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      _showError('Error: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -101,45 +100,22 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.resendCode(
-        email: widget.email,
-      );
+      final result = await AuthModel.resendCode(email: widget.email);
 
       if (!mounted) return;
 
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('New verification code sent to ${widget.email}'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        _showSuccess('New verification code sent to ${widget.email}');
 
+        // Show the new code if available
         if (result['verificationCode'] != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Demo Code: ${result['verificationCode']}'),
-              duration: const Duration(seconds: 10),
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-            ),
-          );
+          _showCodeDialog(result['verificationCode']);
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Failed to resend code'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        _showError(result['message'] ?? 'Failed to resend code');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Failed to resend code'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      _showError('Failed to resend code');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -147,195 +123,216 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     }
   }
 
+  void _showCodeDialog(String code) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Verification Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Your new verification code is:'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                code,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Auto-fill the new code
+              for (int i = 0; i < 6; i++) {
+                _codeControllers[i].text = code[i];
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text('Verify Email'),
-        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
+        centerTitle: true,
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Icon
-                  Icon(
-                    Icons.mark_email_unread,
-                    size: 80,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
 
-                  // Title
-                  Text(
-                    'Verify Your Email',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onBackground,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
+                // Icon
+                Icon(
+                  Icons.mark_email_unread,
+                  size: 80,
+                  color: Theme.of(context).primaryColor,
+                ),
+                const SizedBox(height: 24),
 
-                  // Subtitle
-                  Text(
-                    'Enter the 6-digit code sent to',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
+                // Title
+                Text(
+                  'Verify Your Email',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.email,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // Subtitle
+                Text(
+                  'Enter the 6-digit code sent to',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.email,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).primaryColor,
+                    fontWeight: FontWeight.w600,
                   ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+
+                // Code Input Fields
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(6, (index) {
+                    return SizedBox(
+                      width: 45,
+                      child: TextFormField(
+                        controller: _codeControllers[index],
+                        keyboardType: TextInputType.number,
+                        maxLength: 1,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                        onChanged: (value) {
+                          if (value.isNotEmpty && index < 5) {
+                            FocusScope.of(context).nextFocus();
+                          }
+                          if (value.isEmpty && index > 0) {
+                            FocusScope.of(context).previousFocus();
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 32),
+
+                // Verify Button
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleVerify,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Verify Email'),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Resend Code Button
+                TextButton(
+                  onPressed: _isLoading ? null : _resendCode,
+                  child: const Text('Didn\'t receive the code? Resend'),
+                ),
+
+                // ADDED: Show verification code from backend
+                if (widget.verificationCode != null) ...[
                   const SizedBox(height: 32),
-
-                  // Code Input Fields
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(6, (index) {
-                      return SizedBox(
-                        width: 45,
-                        child: TextFormField(
-                          controller: _codeControllers[index],
-                          keyboardType: TextInputType.number,
-                          maxLength: 1,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 20,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Demo Verification Code',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: theme.colorScheme.outline,
-                              ),
-                            ),
-                            filled: true,
-                            fillColor: theme.colorScheme.surface,
-                          ),
-                          onChanged: (value) {
-                            if (value.isNotEmpty && index < 5) {
-                              FocusScope.of(context).nextFocus();
-                            }
-                            if (value.isEmpty && index > 0) {
-                              FocusScope.of(context).previousFocus();
-                            }
-                          },
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Verify Button
-                  SizedBox(
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleVerify,
-                      child: _isLoading
-                          ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            theme.colorScheme.onPrimary,
+                            color: Colors.blue.shade800,
                           ),
                         ),
-                      )
-                          : Text(
-                        'Verify Email',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onPrimary,
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.verificationCode!,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade600,
+                            letterSpacing: 2,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Code auto-filled above',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.blue.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // FIXED: Resend Code - Simplified without TextButton
-                  Center(
-                    child: GestureDetector(
-                      onTap: _isLoading ? null : _resendCode,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                        child: RichText(
-                          text: TextSpan(
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            children: [
-                              const TextSpan(text: 'Didn\'t receive the code? '),
-                              TextSpan(
-                                text: 'Resend',
-                                style: TextStyle(
-                                  color: _isLoading
-                                      ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
-                                      : theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  if (widget.verificationCode != null) ...[
-                    const SizedBox(height: 32),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: theme.colorScheme.primary.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Demo Verification Code',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.verificationCode!,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
           ),
         ),

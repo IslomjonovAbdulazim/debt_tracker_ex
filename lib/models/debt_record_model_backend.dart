@@ -31,7 +31,7 @@ class DebtRecordModelBackend {
   }) : dueDate = dueDate ?? createdDate.add(const Duration(days: 30));
 
   // =============================================
-  // CALCULATED PROPERTIES
+  // CALCULATED PROPERTIES - Simple for students
   // =============================================
 
   bool get isOverdue {
@@ -40,21 +40,20 @@ class DebtRecordModelBackend {
   }
 
   // =============================================
-  // JSON SERIALIZATION - FIXED to match documentation
+  // JSON SERIALIZATION - Matching API exactly
   // =============================================
 
-  // FIXED: Documentation expects these exact field names for contact-debt endpoint
+  // API expects these exact field names for contact-debt endpoint
   Map<String, dynamic> toJson() {
     return {
       'debt_amount': debtAmount,
       'description': debtDescription,
       'due_date': dueDate.toIso8601String(),
-      'is_paid': isPaidBack,
       'is_my_debt': isMyDebt,
     };
   }
 
-  // FIXED: Handle response from contact-debts endpoint
+  // Handle response from contact-debts endpoint
   factory DebtRecordModelBackend.fromJson(Map<String, dynamic> json) {
     return DebtRecordModelBackend(
       recordId: json['id']?.toString() ?? '',
@@ -75,10 +74,10 @@ class DebtRecordModelBackend {
   }
 
   // =============================================
-  // API METHODS - FIXED to match documentation
+  // API METHODS - Simplified for students (Create only)
   // =============================================
 
-  // FIXED: Create debt using contact-debt endpoint with contact ID in path
+  // CREATE debt using contact-debt endpoint with contact ID in path
   static Future<Map<String, dynamic>> createDebtRecord(DebtRecordModelBackend debtRecord) async {
     try {
       AppLogger.dataOperation('CREATE', 'Debt');
@@ -104,40 +103,7 @@ class DebtRecordModelBackend {
     }
   }
 
-  // FIXED: Get all debts using documentation endpoint
-  static Future<List<DebtRecordModelBackend>> getAllDebtRecords() async {
-    try {
-      AppLogger.info('Fetching all debt records', tag: 'DEBT');
-
-      final response = await _apiService.get(ApiConfig.debtsEndpoint); // GET /api/v1/apps/debts
-
-      if (response['success'] == true) {
-        final data = response['data'];
-        List<dynamic> debtsData = [];
-
-        if (data != null && data is List) {
-          debtsData = data;
-        } else if (data != null && data['debts'] is List) {
-          debtsData = data['debts'];
-        }
-
-        final debts = debtsData
-            .map((json) => DebtRecordModelBackend.fromJson(json))
-            .toList();
-
-        AppLogger.info('Retrieved ${debts.length} debt records', tag: 'DEBT');
-        return debts;
-      }
-
-      AppLogger.warning('Failed to get debts: ${response['message']}', tag: 'DEBT');
-      return [];
-    } catch (e) {
-      AppLogger.error('Get all debt records error', tag: 'DEBT', error: e);
-      return [];
-    }
-  }
-
-  // FIXED: Get debts by contact ID using documentation endpoint
+  // GET debts by contact ID
   static Future<List<DebtRecordModelBackend>> getDebtsByContactId(String contactId) async {
     try {
       AppLogger.info('Fetching debts for contact: $contactId', tag: 'DEBT');
@@ -172,7 +138,7 @@ class DebtRecordModelBackend {
     }
   }
 
-  // FIXED: Get home overview using documentation endpoint with correct field names
+  // GET home overview for dashboard
   static Future<Map<String, dynamic>> getHomeOverview() async {
     try {
       AppLogger.info('Fetching home overview', tag: 'DEBT');
@@ -214,7 +180,42 @@ class DebtRecordModelBackend {
     }
   }
 
-  // Get my debts (client-side filtering)
+  // =============================================
+  // CLIENT-SIDE CALCULATIONS - Simple for students
+  // =============================================
+
+  // Get all debts from all contacts (for overview calculations)
+  static Future<List<DebtRecordModelBackend>> getAllDebtRecords() async {
+    try {
+      AppLogger.info('Getting all debt records by fetching from all contacts', tag: 'DEBT');
+
+      // First get all contacts
+      final contacts = await _apiService.get('/api/v1/apps/contact/list');
+      if (contacts['success'] != true) {
+        return [];
+      }
+
+      List<dynamic> contactsData = contacts['data'] ?? [];
+      List<DebtRecordModelBackend> allDebts = [];
+
+      // For each contact, get their debts
+      for (var contactJson in contactsData) {
+        final contactId = contactJson['id']?.toString();
+        if (contactId != null) {
+          final contactDebts = await getDebtsByContactId(contactId);
+          allDebts.addAll(contactDebts);
+        }
+      }
+
+      AppLogger.info('Retrieved total ${allDebts.length} debt records', tag: 'DEBT');
+      return allDebts;
+    } catch (e) {
+      AppLogger.error('Get all debt records error', tag: 'DEBT', error: e);
+      return [];
+    }
+  }
+
+  // Get debts I owe (client-side filtering)
   static Future<List<DebtRecordModelBackend>> getMyDebts() async {
     try {
       AppLogger.info('Fetching debts I owe', tag: 'DEBT');
@@ -230,7 +231,7 @@ class DebtRecordModelBackend {
     }
   }
 
-  // Get their debts (client-side filtering)
+  // Get debts they owe me (client-side filtering)
   static Future<List<DebtRecordModelBackend>> getTheirDebts() async {
     try {
       AppLogger.info('Fetching debts they owe me', tag: 'DEBT');
@@ -287,110 +288,6 @@ class DebtRecordModelBackend {
     } catch (e) {
       AppLogger.error('Calculate total they owe me error', tag: 'DEBT', error: e);
       return 0.0;
-    }
-  }
-
-  // Mark debt as paid (using assumed endpoint)
-  static Future<Map<String, dynamic>> markDebtAsPaid(String id) async {
-    try {
-      AppLogger.dataOperation('UPDATE', 'DebtPayment', id: id);
-
-      final response = await _apiService.patch(
-        ApiConfig.markDebtPaidEndpoint(id),
-        {}, // Backend may expect empty body for PATCH
-      );
-
-      if (response['success'] == true) {
-        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: id, success: true);
-      } else {
-        AppLogger.dataOperation('UPDATE', 'DebtPayment', id: id, success: false);
-      }
-
-      return response;
-    } catch (e) {
-      AppLogger.error('Mark debt as paid error', tag: 'DEBT', error: e);
-      return {
-        'success': false,
-        'message': 'Failed to mark debt as paid: $e',
-      };
-    }
-  }
-
-  // Update debt record
-  static Future<Map<String, dynamic>> updateDebtRecord(String id, DebtRecordModelBackend debt) async {
-    try {
-      AppLogger.dataOperation('UPDATE', 'Debt', id: id);
-
-      final updateData = {
-        'debt_amount': debt.debtAmount,
-        'description': debt.debtDescription,
-        'due_date': debt.dueDate.toIso8601String(),
-        'is_paid': debt.isPaidBack,
-        'is_my_debt': debt.isMyDebt,
-      };
-
-      final response = await _apiService.put(
-        ApiConfig.updateDebtEndpoint(id),
-        updateData,
-      );
-
-      if (response['success'] == true) {
-        AppLogger.dataOperation('UPDATE', 'Debt', id: id, success: true);
-      } else {
-        AppLogger.dataOperation('UPDATE', 'Debt', id: id, success: false);
-      }
-
-      return response;
-    } catch (e) {
-      AppLogger.error('Update debt record error', tag: 'DEBT', error: e);
-      return {
-        'success': false,
-        'message': 'Failed to update debt: $e',
-      };
-    }
-  }
-
-  // Delete debt record
-  static Future<Map<String, dynamic>> deleteDebtRecord(String id) async {
-    try {
-      AppLogger.dataOperation('DELETE', 'Debt', id: id);
-
-      final response = await _apiService.delete(ApiConfig.deleteDebtEndpoint(id));
-
-      if (response['success'] == true) {
-        AppLogger.dataOperation('DELETE', 'Debt', id: id, success: true);
-      } else {
-        AppLogger.dataOperation('DELETE', 'Debt', id: id, success: false);
-      }
-
-      return response;
-    } catch (e) {
-      AppLogger.error('Delete debt record error', tag: 'DEBT', error: e);
-      return {
-        'success': false,
-        'message': 'Failed to delete debt: $e',
-      };
-    }
-  }
-
-  // Get specific debt by ID
-  static Future<DebtRecordModelBackend?> getDebtRecordById(String id) async {
-    try {
-      AppLogger.info('Fetching debt by ID: $id', tag: 'DEBT');
-
-      final response = await _apiService.get(ApiConfig.getDebtEndpoint(id));
-
-      if (response['success'] == true && response['data'] != null) {
-        final debt = DebtRecordModelBackend.fromJson(response['data']);
-        AppLogger.info('Retrieved debt $id', tag: 'DEBT');
-        return debt;
-      }
-
-      AppLogger.warning('Debt $id not found', tag: 'DEBT');
-      return null;
-    } catch (e) {
-      AppLogger.error('Get debt by ID error', tag: 'DEBT', error: e);
-      return null;
     }
   }
 
