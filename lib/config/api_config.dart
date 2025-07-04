@@ -1,7 +1,7 @@
 // lib/config/api_config.dart
 class ApiConfig {
   // UPDATED: New base URL
-  static const String baseUrl = 'http://10.10.1.239:8000/';
+  static const String baseUrl = 'http://46.149.68.29';
 
   // Authentication endpoints
   static const String registerEndpoint = '/api/v1/auth/register';
