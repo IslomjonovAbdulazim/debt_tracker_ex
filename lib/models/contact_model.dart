@@ -36,6 +36,21 @@ class ContactModel {
     );
   }
 
+  // Create a copy with updated fields
+  ContactModel copyWith({
+    String? id,
+    String? fullName,
+    String? phoneNumber,
+    DateTime? createdDate,
+  }) {
+    return ContactModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      createdDate: createdDate ?? this.createdDate,
+    );
+  }
+
   // Validation methods - simple for teaching
   static String? validateFullName(String? name) {
     if (name == null || name.trim().isEmpty) {
@@ -64,7 +79,7 @@ class ContactModel {
     return null;
   }
 
-  // API Methods - simplified for teaching (Create, Read, Delete only)
+  // API Methods - Complete CRUD operations
   static Future<Map<String, dynamic>> createContact(ContactModel contact) async {
     final apiService = ApiService();
 
@@ -94,6 +109,40 @@ class ContactModel {
       return {
         'success': false,
         'message': 'Failed to create contact: $e',
+      };
+    }
+  }
+
+  // NEW: Update contact method
+  static Future<Map<String, dynamic>> updateContact(ContactModel contact) async {
+    final apiService = ApiService();
+
+    try {
+      // Validate before sending
+      final nameError = validateFullName(contact.fullName);
+      final phoneError = validatePhoneNumber(contact.phoneNumber);
+
+      if (nameError != null || phoneError != null) {
+        return {
+          'success': false,
+          'message': 'Validation failed',
+          'errors': {
+            if (nameError != null) 'fullname': nameError,
+            if (phoneError != null) 'phone_number': phoneError,
+          }
+        };
+      }
+
+      final response = await apiService.put(
+        ApiConfig.updateContactEndpoint(contact.id),
+        contact.toJson(),
+      );
+
+      return response;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to update contact: $e',
       };
     }
   }

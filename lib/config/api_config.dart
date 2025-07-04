@@ -13,15 +13,19 @@ class ApiConfig {
   static const String refreshTokenEndpoint = '/api/v1/auth/token/refresh';
   static const String resendCodeEndpoint = '/api/v1/auth/resend';
 
-  // Contact endpoints - Simplified (Create, Read, Delete only)
+  // Contact endpoints - Complete CRUD
   static const String contactsEndpoint = '/api/v1/apps/contact/list';
   static const String createContactEndpoint = '/api/v1/apps/contact';
   static String deleteContactEndpoint(String id) => '/api/v1/apps/contact/$id';
+  static String updateContactEndpoint(String id) => '/api/v1/apps/contact/update/$id';
 
-  // Debt endpoints - Simplified
+  // Debt endpoints - Complete CRUD + Mark as Paid
   static const String allDebtsEndpoint = '/api/v1/apps/debt/list';
   static String createContactDebtEndpoint(String contactId) => '/api/v1/apps/contact-debt/$contactId';
   static String getContactDebtsEndpoint(String contactId) => '/api/v1/apps/contact-debts/$contactId';
+  static String deleteDebtEndpoint(String id) => '/api/v1/apps/debt/delete/$id/';
+  static String updateDebtEndpoint(String id) => '/api/v1/apps/debt/put/$id';
+  static String markDebtAsPaidEndpoint(String debtId) => '/api/v1/apps/debts/paid/$debtId';
 
   // Home endpoint
   static const String homeOverviewEndpoint = '/api/v1/apps/home/overview';

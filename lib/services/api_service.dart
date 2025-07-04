@@ -101,6 +101,60 @@ class ApiService {
     }
   }
 
+  // NEW: PUT method for updates
+  Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data, {bool requiresAuth = true}) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
+      Map<String, String> headers = ApiConfig.defaultHeaders;
+
+      if (requiresAuth) {
+        final token = await _getAuthToken();
+        if (token != null) {
+          headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          return {'success': false, 'message': 'No authentication token'};
+        }
+      }
+
+      final response = await http.put(
+        url,
+        headers: headers,
+        body: jsonEncode(data),
+      ).timeout(ApiConfig.requestTimeout);
+
+      return _handleResponse(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // NEW: PATCH method for partial updates
+  Future<Map<String, dynamic>> patch(String endpoint, Map<String, dynamic> data, {bool requiresAuth = true}) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
+      Map<String, String> headers = ApiConfig.defaultHeaders;
+
+      if (requiresAuth) {
+        final token = await _getAuthToken();
+        if (token != null) {
+          headers = ApiConfig.getAuthHeaders(token);
+        } else {
+          return {'success': false, 'message': 'No authentication token'};
+        }
+      }
+
+      final response = await http.patch(
+        url,
+        headers: headers,
+        body: jsonEncode(data),
+      ).timeout(ApiConfig.requestTimeout);
+
+      return _handleResponse(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   Future<Map<String, dynamic>> delete(String endpoint, {bool requiresAuth = true}) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
@@ -155,6 +209,7 @@ class ApiService {
       switch (response.statusCode) {
         case 200:
         case 201:
+        case 204: // Added 204 for successful DELETE operations
           return {
             'success': true,
             'message': responseData['message'] ?? 'Success',

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/debt_record_model_backend.dart';
+import '../models/contact_model.dart';
 import '../config/app_theme.dart';
 import '../config/app_logger.dart';
+import 'edit_debt_page.dart';
 
 class DebtsPage extends StatefulWidget {
   final int initialTabIndex;
@@ -123,6 +125,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     }
   }
 
+  // FIXED: Now using the working API endpoint
   Future<void> _markDebtAsPaid(DebtRecordModelBackend debt) async {
     AppLogger.userAction('Mark debt as paid attempt', context: {
       'debtId': debt.recordId,
@@ -130,8 +133,30 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     });
 
     try {
-      // final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
-      final result = null;
+      // Show loading feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Marking debt as paid...'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+
+      if (!mounted) return;
+
+      // Clear the loading snackbar
+      ScaffoldMessenger.of(context).clearSnackBars();
 
       if (result['success'] == true) {
         AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);
@@ -139,30 +164,209 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Debt marked as paid successfully!'),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text('Debt marked as paid successfully!'),
+              ],
+            ),
             backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
           ),
         );
       } else {
         AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: false);
+
+        String errorMessage = result['message'] ?? 'Failed to mark debt as paid';
+        if (result['errors'] != null && result['errors'] is Map) {
+          final errors = result['errors'] as Map;
+          if (errors.isNotEmpty) {
+            errorMessage = errors.values.first.toString();
+          }
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Failed to mark debt as paid'),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
     } catch (e) {
       AppLogger.error('Mark debt as paid error', tag: 'DEBTS', error: e);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Error: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  // NEW: Edit debt functionality
+  Future<void> _editDebt(DebtRecordModelBackend debt) async {
+    AppLogger.userAction('Navigate to edit debt from overview', context: {
+      'debtId': debt.recordId,
+      'contactId': debt.contactId,
+    });
+
+    try {
+      // We need to get the contact info first
+      // For simplicity, we'll create a minimal contact object
+      final contact = ContactModel(
+        id: debt.contactId,
+        fullName: debt.contactName,
+        phoneNumber: debt.contactPhone ?? '',
+        createdDate: DateTime.now(),
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EditDebtPage(
+            contact: contact,
+            debt: debt,
+          ),
+        ),
+      ).then((_) {
+        AppLogger.info('Returned from edit debt, refreshing all debts', tag: 'DEBTS_PAGE');
+        _loadDebts();
+      });
+    } catch (e) {
+      AppLogger.error('Edit debt navigation error', tag: 'DEBTS_PAGE', error: e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text('Error opening edit page: ${e.toString()}'),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  // NEW: Delete debt functionality
+  Future<void> _deleteDebt(DebtRecordModelBackend debt) async {
+    AppLogger.userAction('Delete debt attempt', context: {
+      'debtId': debt.recordId,
+      'amount': debt.debtAmount,
+    });
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Debt Record'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this debt record?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Contact: ${debt.contactName}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('Amount: \$${debt.debtAmount.toStringAsFixed(2)}'),
+                  Text('Description: ${debt.debtDescription}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final result = await DebtRecordModelBackend.deleteDebtRecord(debt.recordId);
+
+        if (!mounted) return;
+
+        if (result['success'] == true) {
+          AppLogger.dataOperation('DELETE', 'Debt', id: debt.recordId, success: true);
+          _loadDebts(); // Refresh all debt lists
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Debt record deleted successfully!'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          AppLogger.dataOperation('DELETE', 'Debt', id: debt.recordId, success: false);
+
+          String errorMessage = result['message'] ?? 'Failed to delete debt record';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        AppLogger.error('Delete debt error', tag: 'DEBTS', error: e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -470,6 +674,50 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                   ),
                 ),
 
+                // More options menu
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editDebt(debt);
+                    } else if (value == 'delete') {
+                      _deleteDebt(debt);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, color: theme.colorScheme.primary, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Edit',
+                            style: TextStyle(color: theme.colorScheme.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: theme.colorScheme.error, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Delete',
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
                 // Amount and Status
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -575,7 +823,7 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${daysDifference.abs()} ${daysDifference.abs() == 1 ? 'day' : 'days'}',
+                        '${daysDifference.abs()} ${daysDifference.abs() == 1 ? 'day' : 'days'}${isOverdue ? ' ago' : ''}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,

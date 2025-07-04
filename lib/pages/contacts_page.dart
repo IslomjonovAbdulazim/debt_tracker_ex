@@ -88,15 +88,34 @@ class _ContactsPageState extends State<ContactsPage> {
 
   Future<void> _showAddContactDialog() async {
     AppLogger.userAction('Add contact dialog opened');
+    await _showContactDialog();
+  }
 
+  // NEW: Edit contact dialog
+  Future<void> _showEditContactDialog(ContactModel contact) async {
+    AppLogger.userAction('Edit contact dialog opened', context: {
+      'contactId': contact.id,
+      'contactName': contact.fullName,
+    });
+    await _showContactDialog(contactToEdit: contact);
+  }
+
+  // UPDATED: Unified dialog for add/edit
+  Future<void> _showContactDialog({ContactModel? contactToEdit}) async {
     final theme = Theme.of(context);
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
+    final nameController = TextEditingController(text: contactToEdit?.fullName ?? '');
+    final phoneController = TextEditingController(text: contactToEdit?.phoneNumber ?? '');
+    final isEditing = contactToEdit != null;
 
     final phoneMaskFormatter = MaskTextInputFormatter(
       mask: '+998 ## ### ## ##',
       filter: {"#": RegExp(r'[0-9]')},
     );
+
+    // Set initial phone value for editing
+    if (isEditing && contactToEdit!.phoneNumber.isNotEmpty) {
+      phoneController.text = contactToEdit.phoneNumber;
+    }
 
     return showDialog(
       context: context,
@@ -104,7 +123,7 @@ class _ContactsPageState extends State<ContactsPage> {
         backgroundColor: theme.colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Add New Contact',
+          isEditing ? 'Edit Contact' : 'Add New Contact',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.onSurface,
@@ -164,7 +183,7 @@ class _ContactsPageState extends State<ContactsPage> {
         actions: [
           TextButton(
             onPressed: () {
-              AppLogger.userAction('Add contact cancelled');
+              AppLogger.userAction(isEditing ? 'Edit contact cancelled' : 'Add contact cancelled');
               Navigator.pop(context);
             },
             child: Text(
@@ -174,7 +193,7 @@ class _ContactsPageState extends State<ContactsPage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              AppLogger.userAction('Add contact submit attempt');
+              AppLogger.userAction(isEditing ? 'Edit contact submit attempt' : 'Add contact submit attempt');
 
               // Validate using the model's validation methods
               final nameError = ContactModel.validateFullName(nameController.text);
@@ -191,31 +210,35 @@ class _ContactsPageState extends State<ContactsPage> {
                 return;
               }
 
-              // Create contact with API field names
-              final newContact = ContactModel(
-                id: '', // Will be set by API
+              final contactData = ContactModel(
+                id: isEditing ? contactToEdit!.id : '', // Keep existing ID for updates
                 fullName: nameController.text.trim(),
                 phoneNumber: phoneController.text.trim(),
-                createdDate: DateTime.now(),
+                createdDate: isEditing ? contactToEdit!.createdDate : DateTime.now(),
               );
 
-              final result = await ContactModel.createContact(newContact);
+              Map<String, dynamic> result;
+              if (isEditing) {
+                result = await ContactModel.updateContact(contactData);
+              } else {
+                result = await ContactModel.createContact(contactData);
+              }
 
               if (result['success'] == true) {
-                AppLogger.dataOperation('CREATE', 'Contact', success: true);
+                AppLogger.dataOperation(isEditing ? 'UPDATE' : 'CREATE', 'Contact', success: true);
                 Navigator.pop(context);
                 _loadContacts();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(result['message'] ?? 'Contact added successfully!'),
+                    content: Text(result['message'] ?? '${isEditing ? 'Contact updated' : 'Contact added'} successfully!'),
                     backgroundColor: theme.colorScheme.primary,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               } else {
-                AppLogger.dataOperation('CREATE', 'Contact', success: false, data: result);
+                AppLogger.dataOperation(isEditing ? 'UPDATE' : 'CREATE', 'Contact', success: false, data: result);
 
-                String errorMessage = result['message'] ?? 'Failed to add contact';
+                String errorMessage = result['message'] ?? '${isEditing ? 'Failed to update' : 'Failed to add'} contact';
                 if (result['errors'] != null && result['errors'] is Map) {
                   final errors = result['errors'] as Map;
                   if (errors.isNotEmpty) {
@@ -237,7 +260,7 @@ class _ContactsPageState extends State<ContactsPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Add Contact'),
+            child: Text(isEditing ? 'Update Contact' : 'Add Contact'),
           ),
         ],
       ),
@@ -634,7 +657,7 @@ class _ContactsPageState extends State<ContactsPage> {
                 ),
               ),
 
-              // Actions
+              // Actions - UPDATED: Added edit option
               PopupMenuButton<String>(
                 icon: Icon(
                   Icons.more_vert,
@@ -642,11 +665,26 @@ class _ContactsPageState extends State<ContactsPage> {
                 ),
                 color: theme.colorScheme.surface,
                 onSelected: (value) {
-                  if (value == 'delete') {
+                  if (value == 'edit') {
+                    _showEditContactDialog(contact);
+                  } else if (value == 'delete') {
                     _deleteContact(contact);
                   }
                 },
                 itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Edit',
+                          style: TextStyle(color: theme.colorScheme.primary),
+                        ),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'delete',
                     child: Row(
