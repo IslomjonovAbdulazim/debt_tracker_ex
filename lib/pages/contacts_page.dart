@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../models/contact_model_backend.dart';
+import '../models/contact_model.dart';
 import '../models/debt_record_model_backend.dart';
 import '../config/app_theme.dart';
 import '../config/app_logger.dart';
@@ -14,8 +14,8 @@ class ContactsPage extends StatefulWidget {
 }
 
 class _ContactsPageState extends State<ContactsPage> {
-  List<ContactModelBackend> contacts = [];
-  List<ContactModelBackend> filteredContacts = [];
+  List<ContactModel> contacts = [];
+  List<ContactModel> filteredContacts = [];
   bool isLoading = true;
   final TextEditingController searchController = TextEditingController();
 
@@ -41,7 +41,7 @@ class _ContactsPageState extends State<ContactsPage> {
     AppLogger.info('Loading contacts', tag: 'CONTACTS');
 
     try {
-      final loadedContacts = await ContactModelBackend.getAllContacts(forceRefresh: true);
+      final loadedContacts = await ContactModel.getAllContacts();
 
       stopwatch.stop();
       AppLogger.performance('Contacts load', stopwatch.elapsed, data: {
@@ -177,8 +177,8 @@ class _ContactsPageState extends State<ContactsPage> {
               AppLogger.userAction('Add contact submit attempt');
 
               // Validate using the model's validation methods
-              final nameError = ContactModelBackend.validateFullName(nameController.text);
-              final phoneError = ContactModelBackend.validatePhoneNumber(phoneController.text);
+              final nameError = ContactModel.validateFullName(nameController.text);
+              final phoneError = ContactModel.validatePhoneNumber(phoneController.text);
 
               if (nameError != null || phoneError != null) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -192,14 +192,14 @@ class _ContactsPageState extends State<ContactsPage> {
               }
 
               // Create contact with API field names
-              final newContact = ContactModelBackend(
+              final newContact = ContactModel(
                 id: '', // Will be set by API
                 fullName: nameController.text.trim(),
                 phoneNumber: phoneController.text.trim(),
                 createdDate: DateTime.now(),
               );
 
-              final result = await ContactModelBackend.createContact(newContact);
+              final result = await ContactModel.createContact(newContact);
 
               if (result['success'] == true) {
                 AppLogger.dataOperation('CREATE', 'Contact', success: true);
@@ -244,7 +244,7 @@ class _ContactsPageState extends State<ContactsPage> {
     );
   }
 
-  Future<void> _deleteContact(ContactModelBackend contact) async {
+  Future<void> _deleteContact(ContactModel contact) async {
     AppLogger.userAction('Delete contact attempt', context: {
       'contactId': contact.id,
       'contactName': contact.fullName,
@@ -337,7 +337,7 @@ class _ContactsPageState extends State<ContactsPage> {
       );
 
       if (confirmed == true) {
-        final result = await ContactModelBackend.deleteContact(contact.id);
+        final result = await ContactModel.deleteContact(contact.id);
 
         if (result['success'] == true) {
           AppLogger.dataOperation('DELETE', 'Contact', success: true, data: {
@@ -562,7 +562,7 @@ class _ContactsPageState extends State<ContactsPage> {
     );
   }
 
-  Widget _buildContactCard(ContactModelBackend contact, ThemeData theme) {
+  Widget _buildContactCard(ContactModel contact, ThemeData theme) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,

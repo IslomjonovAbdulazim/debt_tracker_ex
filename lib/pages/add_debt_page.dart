@@ -5,7 +5,7 @@ import '../config/app_theme.dart';
 import '../config/app_logger.dart';
 
 class AddDebtPage extends StatefulWidget {
-  final ContactModelBackend contact;
+  final ContactModel contact;
   final bool isMyDebt;
 
   const AddDebtPage({

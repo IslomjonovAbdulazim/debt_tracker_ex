@@ -56,7 +56,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.verifyResetCode(
+      final result = await AuthModel.verifyResetCode(
         email: widget.email,
         code: code,
       );
@@ -101,7 +101,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.resetPassword(
+      final result = await AuthModel.resetPassword(
         email: widget.email,
         newPassword: _newPasswordController.text,
       );

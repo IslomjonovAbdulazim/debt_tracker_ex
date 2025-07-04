@@ -1,12 +1,12 @@
-// lib/pages/auth/verify_email_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/auth_model.dart';
 import 'login_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
   final String email;
   final bool isFromRegistration;
-  final String? verificationCode; // ADDED: Display code in app
+  final String? verificationCode;
 
   const VerifyEmailPage({
     super.key,
@@ -21,48 +21,60 @@ class VerifyEmailPage extends StatefulWidget {
 
 class _VerifyEmailPageState extends State<VerifyEmailPage> {
   final _formKey = GlobalKey<FormState>();
-  final List<TextEditingController> _codeControllers = List.generate(
-    6,
-        (_) => TextEditingController(),
-  );
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
-
-  @override
-  void dispose() {
-    for (var controller in _codeControllers) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  String _getCompleteCode() {
-    return _codeControllers.map((c) => c.text).join();
-  }
-
-  // ADDED: Auto-fill code if provided
-  void _fillCodeFromBackend() {
-    if (widget.verificationCode != null && widget.verificationCode!.length == 6) {
-      for (int i = 0; i < 6; i++) {
-        _codeControllers[i].text = widget.verificationCode![i];
-      }
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    // Auto-fill code after a short delay to let UI settle
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _fillCodeFromBackend();
-    });
+    if (widget.verificationCode != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _autoFillCode());
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _autoFillCode() {
+    final code = widget.verificationCode;
+    if (code != null && code.length == 6) {
+      for (int i = 0; i < 6; i++) {
+        _controllers[i].text = code[i];
+      }
+      setState(() {});
+    }
+  }
+
+  String get _verificationCode => _controllers.map((c) => c.text).join();
+
+  void _onCodeChanged(String value, int index) {
+    if (value.isNotEmpty) {
+      if (index < 5) {
+        _focusNodes[index + 1].requestFocus();
+      } else {
+        _focusNodes[index].unfocus();
+      }
+    }
+  }
+
+  void _onBackspace(int index) {
+    if (_controllers[index].text.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
   }
 
   Future<void> _handleVerify() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final code = _getCompleteCode();
-    if (code.length != 6) {
-      _showError('Please enter the complete verification code');
+    if (_verificationCode.length != 6) {
+      _showMessage('Please enter the complete 6-digit code', isError: true);
       return;
     }
 
@@ -71,28 +83,25 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     try {
       final result = await AuthModel.verifyEmail(
         email: widget.email,
-        code: code,
+        code: _verificationCode,
       );
 
       if (!mounted) return;
 
       if (result['success']) {
-        _showSuccess('Email verified successfully!');
-
+        _showMessage('Email verified successfully!');
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
               (route) => false,
         );
       } else {
-        _showError(result['message'] ?? 'Verification failed');
+        _showMessage(result['message'] ?? 'Verification failed', isError: true);
       }
     } catch (e) {
-      _showError('Error: $e');
+      _showMessage('Error: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -105,25 +114,21 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       if (!mounted) return;
 
       if (result['success']) {
-        _showSuccess('New verification code sent to ${widget.email}');
-
-        // Show the new code if available
+        _showMessage('New verification code sent to ${widget.email}');
         if (result['verificationCode'] != null) {
-          _showCodeDialog(result['verificationCode']);
+          _showNewCodeDialog(result['verificationCode']);
         }
       } else {
-        _showError(result['message'] ?? 'Failed to resend code');
+        _showMessage(result['message'] ?? 'Failed to resend code', isError: true);
       }
     } catch (e) {
-      _showError('Failed to resend code');
+      _showMessage('Failed to resend code', isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showCodeDialog(String code) {
+  void _showNewCodeDialog(String code) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -136,15 +141,14 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Theme.of(context).colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 code,
-                style: const TextStyle(
-                  fontSize: 24,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+                  letterSpacing: 4,
                 ),
               ),
             ),
@@ -154,33 +158,25 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Auto-fill the new code
-              for (int i = 0; i < 6; i++) {
-                _codeControllers[i].text = code[i];
+              for (int i = 0; i < 6 && i < code.length; i++) {
+                _controllers[i].text = code[i];
               }
+              setState(() {});
             },
-            child: const Text('OK'),
+            child: const Text('Use This Code'),
           ),
         ],
       ),
     );
   }
 
-  void _showSuccess(String message) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: isError
+            ? Theme.of(context).colorScheme.error
+            : Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -188,7 +184,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text('Verify Email'),
         centerTitle: true,
@@ -207,15 +206,16 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                 Icon(
                   Icons.mark_email_unread,
                   size: 80,
-                  color: Theme.of(context).primaryColor,
+                  color: theme.colorScheme.primary,
                 ),
                 const SizedBox(height: 24),
 
                 // Title
                 Text(
                   'Verify Your Email',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onBackground,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -224,65 +224,125 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                 // Subtitle
                 Text(
                   'Enter the 6-digit code sent to',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   widget.email,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).primaryColor,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.primary,
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
 
                 // Code Input Fields
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(6, (index) {
                     return SizedBox(
-                      width: 45,
+                      width: 50,
+                      height: 60,
                       child: TextFormField(
-                        controller: _codeControllers[index],
+                        controller: _controllers[index],
+                        focusNode: _focusNodes[index],
                         keyboardType: TextInputType.number,
-                        maxLength: 1,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
+                        maxLength: 1,
+                        style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
                         ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         decoration: InputDecoration(
                           counterText: '',
+                          contentPadding: EdgeInsets.zero,
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline,
+                              width: 2,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.error,
+                              width: 2,
+                            ),
                           ),
                           filled: true,
-                          fillColor: Colors.grey.shade50,
+                          fillColor: theme.colorScheme.surface,
                         ),
                         onChanged: (value) {
-                          if (value.isNotEmpty && index < 5) {
-                            FocusScope.of(context).nextFocus();
+                          if (value.length == 1) {
+                            _onCodeChanged(value, index);
+                          } else if (value.isEmpty) {
+                            _onBackspace(index);
                           }
-                          if (value.isEmpty && index > 0) {
-                            FocusScope.of(context).previousFocus();
-                          }
+                          setState(() {});
+                        },
+                        onTap: () {
+                          // Clear field when tapped
+                          _controllers[index].clear();
                         },
                       ),
                     );
                   }),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
 
                 // Verify Button
                 SizedBox(
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleVerify,
+                    onPressed: (_isLoading || _verificationCode.length != 6)
+                        ? null
+                        : _handleVerify,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Verify Email'),
+                        ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    )
+                        : Text(
+                      'Verify Email',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -290,42 +350,66 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                 // Resend Code Button
                 TextButton(
                   onPressed: _isLoading ? null : _resendCode,
-                  child: const Text('Didn\'t receive the code? Resend'),
+                  child: Text(
+                    'Didn\'t receive the code? Resend',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
 
-                // ADDED: Show verification code from backend
+                // Demo code display
                 if (widget.verificationCode != null) ...[
                   const SizedBox(height: 32),
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
+                      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withOpacity(0.3),
+                      ),
                     ),
                     child: Column(
                       children: [
+                        Icon(
+                          Icons.developer_mode,
+                          color: theme.colorScheme.primary,
+                          size: 24,
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           'Demo Verification Code',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade800,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            widget.verificationCode!,
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 6,
+                              color: theme.colorScheme.primary,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          widget.verificationCode!,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade600,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Code auto-filled above',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.blue.shade600,
+                          'Code has been auto-filled',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],

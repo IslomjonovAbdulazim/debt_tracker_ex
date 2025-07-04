@@ -122,9 +122,9 @@ class ApiService {
     }
   }
 
-  // Response handler - simplified
+  // FIXED: Response handler to handle both objects and arrays
   Map<String, dynamic> _handleResponse(http.Response response) {
-    Map<String, dynamic> responseData;
+    dynamic responseData;
 
     try {
       responseData = jsonDecode(response.body);
@@ -136,51 +136,71 @@ class ApiService {
       };
     }
 
-    // Handle tokens if present
-    _handleTokensFromResponse(responseData);
-
-    // Simplified status code handling
-    switch (response.statusCode) {
-      case 200:
-      case 201:
-        return {
-          'success': true,
-          'message': responseData['message'] ?? 'Success',
-          'data': responseData['data'] ?? responseData,
-          'code': responseData['code'], // ADDED: Handle verification code
-          'statusCode': response.statusCode,
-        };
-
-      case 400:
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Bad request',
-          'errors': responseData['errors'] ?? {},
-          'statusCode': response.statusCode,
-        };
-
-      case 401:
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Unauthorized',
-          'statusCode': response.statusCode,
-          'needsLogin': true,
-        };
-
-      case 404:
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Not found',
-          'statusCode': response.statusCode,
-        };
-
-      default:
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Request failed',
-          'statusCode': response.statusCode,
-        };
+    // FIXED: Handle raw array responses (like contacts endpoint)
+    if (responseData is List && response.statusCode >= 200 && response.statusCode < 300) {
+      return {
+        'success': true,
+        'message': 'Success',
+        'data': responseData, // Wrap array in data field
+        'statusCode': response.statusCode,
+      };
     }
+
+    // Handle object responses
+    if (responseData is Map<String, dynamic>) {
+      // Handle tokens if present
+      _handleTokensFromResponse(responseData);
+
+      // Simplified status code handling
+      switch (response.statusCode) {
+        case 200:
+        case 201:
+          return {
+            'success': true,
+            'message': responseData['message'] ?? 'Success',
+            'data': responseData['data'] ?? responseData,
+            'code': responseData['code'], // ADDED: Handle verification code
+            'statusCode': response.statusCode,
+          };
+
+        case 400:
+          return {
+            'success': false,
+            'message': responseData['message'] ?? 'Bad request',
+            'errors': responseData['errors'] ?? {},
+            'statusCode': response.statusCode,
+          };
+
+        case 401:
+          return {
+            'success': false,
+            'message': responseData['message'] ?? 'Unauthorized',
+            'statusCode': response.statusCode,
+            'needsLogin': true,
+          };
+
+        case 404:
+          return {
+            'success': false,
+            'message': responseData['message'] ?? 'Not found',
+            'statusCode': response.statusCode,
+          };
+
+        default:
+          return {
+            'success': false,
+            'message': responseData['message'] ?? 'Request failed',
+            'statusCode': response.statusCode,
+          };
+      }
+    }
+
+    // Fallback for unexpected response types
+    return {
+      'success': false,
+      'message': 'Unexpected response format',
+      'statusCode': response.statusCode,
+    };
   }
 
   // Error handler - simplified

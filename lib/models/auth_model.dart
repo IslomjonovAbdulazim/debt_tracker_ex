@@ -282,17 +282,7 @@ class AuthModel {
 
   static Future<AuthModel?> getCurrentUser() async {
     try {
-      final apiService = ApiService();
-
-      // Try to get user from API
-      final response = await apiService.get(ApiConfig.getCurrentUserEndpoint);
-      if (response['success'] == true && response['data'] != null) {
-        final user = AuthModel.fromJson(response['data']);
-        await _saveCurrentUser(user);
-        return user;
-      }
-
-      // Fallback to cached data
+      // Only get cached data, no API call
       final prefs = await SharedPreferences.getInstance();
       final userData = prefs.getString('currentUser');
       if (userData == null) return null;
@@ -305,16 +295,11 @@ class AuthModel {
     }
   }
 
+  // FIXED: Only check local token, no API call
   static Future<bool> isLoggedIn() async {
     try {
       final apiService = ApiService();
-      final hasToken = await apiService.hasToken();
-
-      if (!hasToken) return false;
-
-      // Test token validity
-      final response = await apiService.get(ApiConfig.getCurrentUserEndpoint);
-      return response['success'] == true;
+      return await apiService.hasToken();
     } catch (e) {
       return false;
     }

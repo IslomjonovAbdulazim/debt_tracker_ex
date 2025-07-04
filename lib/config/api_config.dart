@@ -1,7 +1,7 @@
 // lib/config/api_config.dart
 class ApiConfig {
   // UPDATED: New base URL
-  static const String baseUrl = 'http://10.10.1.123:8000';
+  static const String baseUrl = 'http://10.10.1.239:8000/';
 
   // Authentication endpoints
   static const String registerEndpoint = '/api/v1/auth/register';
@@ -19,6 +19,7 @@ class ApiConfig {
   static String deleteContactEndpoint(String id) => '/api/v1/apps/contact/$id';
 
   // Debt endpoints - Simplified
+  static const String allDebtsEndpoint = '/api/v1/apps/debt/list';
   static String createContactDebtEndpoint(String contactId) => '/api/v1/apps/contact-debt/$contactId';
   static String getContactDebtsEndpoint(String contactId) => '/api/v1/apps/contact-debts/$contactId';
 

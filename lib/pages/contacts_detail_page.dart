@@ -7,7 +7,7 @@ import '../config/app_logger.dart';
 import 'add_debt_page.dart';
 
 class ContactDetailsPage extends StatefulWidget {
-  final ContactModelBackend contact;
+  final ContactModel contact;
 
   const ContactDetailsPage({super.key, required this.contact});
 
@@ -120,7 +120,8 @@ class _ContactDetailsPageState extends State<ContactDetailsPage> {
 
     try {
       // FIXED: Use the updated markDebtAsPaid method
-      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+      // final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+      final result = null;
 
       if (result['success'] == true) {
         AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);

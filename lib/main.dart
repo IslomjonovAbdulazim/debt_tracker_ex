@@ -46,7 +46,7 @@ class _AuthCheckerState extends State<AuthChecker> {
   }
 
   Future<void> _checkAuthStatus() async {
-    final isLoggedIn = await AuthModelBackend.isLoggedIn();
+    final isLoggedIn = await AuthModel.isLoggedIn();
     setState(() {
       _isLoggedIn = isLoggedIn;
       _isLoading = false;

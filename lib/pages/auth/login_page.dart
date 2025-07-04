@@ -32,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.login(
+      final result = await AuthModel.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );

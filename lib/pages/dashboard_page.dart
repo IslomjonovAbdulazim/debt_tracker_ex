@@ -66,7 +66,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
     try {
       // Check authentication first
-      final isLoggedIn = await AuthModelBackend.isLoggedIn();
+      final isLoggedIn = await AuthModel.isLoggedIn();
       if (!isLoggedIn) {
         AppLogger.warning('User not logged in, redirecting to login', tag: 'DASHBOARD');
         _navigateToLogin();
@@ -190,7 +190,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     try {
       AppLogger.info('Loading contacts count', tag: 'DASHBOARD');
 
-      final contacts = await ContactModelBackend.getAllContacts();
+      final contacts = await ContactModel.getAllContacts();
       if (mounted) {
         setState(() {
           totalContacts = contacts.length;
@@ -233,7 +233,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
       AppLogger.userAction('Quick add debt initiated', context: {'isMyDebt': isMyDebt});
 
       setState(() => isLoading = true);
-      final contacts = await ContactModelBackend.getAllContacts();
+      final contacts = await ContactModel.getAllContacts();
       setState(() => isLoading = false);
 
       if (!mounted) return;
@@ -276,7 +276,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     );
   }
 
-  void _showContactSelectionSheet(List<ContactModelBackend> contacts, bool isMyDebt) {
+  void _showContactSelectionSheet(List<ContactModel> contacts, bool isMyDebt) {
     final financialColors = DebtThemeUtils.getFinancialColors(context);
 
     showModalBottomSheet(
@@ -374,7 +374,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
     );
   }
 
-  void _navigateToAddDebt(ContactModelBackend contact, bool isMyDebt) {
+  void _navigateToAddDebt(ContactModel contact, bool isMyDebt) {
     AppLogger.navigation('Dashboard', 'AddDebt');
     AppLogger.userAction('Navigate to add debt', context: {
       'contactId': contact.id,
@@ -448,7 +448,7 @@ class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserv
 
     if (confirmed == true) {
       try {
-        await AuthModelBackend.logout();
+        await AuthModel.logout();
         AppLogger.authEvent('Logout successful');
         _navigateToLogin();
       } catch (e) {

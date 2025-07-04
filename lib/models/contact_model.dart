@@ -102,30 +102,43 @@ class ContactModel {
     final apiService = ApiService();
 
     try {
+      print('🔍 [CONTACTS] Making API call to: ${ApiConfig.contactsEndpoint}');
       final response = await apiService.get(ApiConfig.contactsEndpoint);
 
-      if (response['success'] == true) {
-        List<dynamic> contactsData = [];
+      print('🔍 [CONTACTS] Raw response: $response');
 
-        // Handle different response structures
-        if (response['data'] != null && response['data'] is List) {
-          contactsData = response['data'];
-        } else if (response['data'] != null && response['data']['contacts'] is List) {
-          contactsData = response['data']['contacts'];
-        }
-
-        final contacts = contactsData
-            .map((json) => ContactModel.fromJson(json))
-            .toList();
-
-        // Sort alphabetically for better UX
-        contacts.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
-
-        return contacts;
+      // Handle 401 Unauthorized - redirect to login
+      if (response['statusCode'] == 401 || response['needsLogin'] == true) {
+        print('❌ [CONTACTS] 401 Unauthorized - clearing invalid token');
+        await apiService.logout(); // Clear invalid token
+        throw Exception('Authentication required');
       }
 
-      return [];
-    } catch (e) {
+      List<dynamic> contactsData = [];
+
+      // API service wraps array response as: {'success': true, 'data': [...]}
+      if (response['success'] == true && response['data'] is List) {
+        contactsData = response['data'] as List<dynamic>;
+        print('🔍 [CONTACTS] Using success+data path, found ${contactsData.length} contacts');
+      }
+      else {
+        print('❌ [CONTACTS] No valid data structure found!');
+        print('❌ [CONTACTS] Response structure: ${response.toString()}');
+        return [];
+      }
+
+      final contacts = contactsData
+          .map((json) => ContactModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      // Sort alphabetically
+      contacts.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+
+      print('✅ [CONTACTS] Successfully loaded ${contacts.length} contacts');
+
+      return contacts;
+    } catch (e, stackTrace) {
+      print('❌ [CONTACTS] Exception: $e');
       return [];
     }
   }

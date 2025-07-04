@@ -26,7 +26,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthModelBackend.forgotPassword(
+      final result = await AuthModel.forgotPassword(
         email: _emailController.text.trim(),
       );
 

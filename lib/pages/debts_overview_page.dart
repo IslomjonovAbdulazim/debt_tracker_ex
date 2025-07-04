@@ -45,24 +45,47 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     setState(() => isLoading = true);
 
     final stopwatch = Stopwatch()..start();
-    AppLogger.info('Loading debts data', tag: 'DEBTS');
+    AppLogger.info('Starting to load all debts data', tag: 'DEBTS_PAGE');
+    print('📋 [DEBTS_PAGE] Starting debt loading process');
 
     try {
-      final results = await Future.wait([
-        DebtRecordModelBackend.getMyDebts(),
-        DebtRecordModelBackend.getTheirDebts(),
-        DebtRecordModelBackend.getOverdueDebts(),
-      ]);
+      // Use new direct API endpoint
+      print('📋 [DEBTS_PAGE] Calling getAllDebtsFromAPI...');
+      final allDebts = await DebtRecordModelBackend.getAllDebtsFromAPI();
 
-      final myDebtsList = results[0] as List<DebtRecordModelBackend>;
-      final theirDebtsList = results[1] as List<DebtRecordModelBackend>;
-      final overdueDebtsList = results[2] as List<DebtRecordModelBackend>;
+      print('📋 [DEBTS_PAGE] Received ${allDebts.length} total debts from API');
+      AppLogger.info('Retrieved ${allDebts.length} total debts', tag: 'DEBTS_PAGE');
+
+      // Filter debts by type
+      print('📋 [DEBTS_PAGE] Filtering debts by categories...');
+
+      final myDebtsList = allDebts.where((debt) => debt.isMyDebt && !debt.isPaidBack).toList();
+      print('📋 [DEBTS_PAGE] Found ${myDebtsList.length} debts I owe');
+
+      final theirDebtsList = allDebts.where((debt) => !debt.isMyDebt && !debt.isPaidBack).toList();
+      print('📋 [DEBTS_PAGE] Found ${theirDebtsList.length} debts they owe me');
+
+      final overdueDebtsList = allDebts.where((debt) => !debt.isPaidBack && debt.isOverdue).toList();
+      print('📋 [DEBTS_PAGE] Found ${overdueDebtsList.length} overdue debts');
+
+      // Log detailed breakdown
+      double myTotal = myDebtsList.fold(0.0, (sum, debt) => sum + debt.debtAmount);
+      double theirTotal = theirDebtsList.fold(0.0, (sum, debt) => sum + debt.debtAmount);
+      double overdueTotal = overdueDebtsList.fold(0.0, (sum, debt) => sum + debt.debtAmount);
+
+      print('📋 [DEBTS_PAGE] My debts total: \$${myTotal.toStringAsFixed(2)}');
+      print('📋 [DEBTS_PAGE] Their debts total: \$${theirTotal.toStringAsFixed(2)}');
+      print('📋 [DEBTS_PAGE] Overdue debts total: \$${overdueTotal.toStringAsFixed(2)}');
 
       stopwatch.stop();
       AppLogger.performance('Debts load', stopwatch.elapsed, data: {
+        'totalDebts': allDebts.length,
         'myDebtsCount': myDebtsList.length,
         'theirDebtsCount': theirDebtsList.length,
         'overdueDebtsCount': overdueDebtsList.length,
+        'myDebtsTotal': myTotal,
+        'theirDebtsTotal': theirTotal,
+        'overdueDebtsTotal': overdueTotal,
       });
 
       setState(() {
@@ -71,17 +94,29 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
         overdueDebts = overdueDebtsList;
         isLoading = false;
       });
-    } catch (e) {
+
+      print('✅ [DEBTS_PAGE] Successfully loaded and categorized all debts');
+      AppLogger.info('Debts loading completed successfully', tag: 'DEBTS_PAGE');
+
+    } catch (e, stackTrace) {
       stopwatch.stop();
-      AppLogger.error('Failed to load debts', tag: 'DEBTS', error: e);
+      print('❌ [DEBTS_PAGE] Error loading debts: $e');
+      print('❌ [DEBTS_PAGE] Stack trace: $stackTrace');
+      AppLogger.error('Failed to load debts', tag: 'DEBTS_PAGE', error: e);
 
       setState(() => isLoading = false);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load debts: ${e.toString()}'),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _loadDebts,
+            ),
           ),
         );
       }
@@ -95,7 +130,8 @@ class _DebtsPageState extends State<DebtsPage> with SingleTickerProviderStateMix
     });
 
     try {
-      final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+      // final result = await DebtRecordModelBackend.markDebtAsPaid(debt.recordId);
+      final result = null;
 
       if (result['success'] == true) {
         AppLogger.dataOperation('UPDATE', 'DebtPayment', id: debt.recordId, success: true);
